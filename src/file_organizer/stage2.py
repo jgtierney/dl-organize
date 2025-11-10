@@ -56,6 +56,9 @@ class Stage2Processor:
         # Track failed operations to prevent infinite loops
         self.failed_folders: Set[str] = set()  # Folders that failed to process
         
+        # Track processed folders in dry-run mode (prevent infinite loops)
+        self.processed_folders: Set[str] = set()  # Folders already processed in dry-run
+        
         # Operation log (for dry-run preview)
         self.operations: List[Tuple[str, str, str]] = []  # (operation, source, dest)
         
@@ -138,14 +141,17 @@ class Stage2Processor:
             for folder_path in folders:
                 folder_key = str(folder_path)
                 
-                # Skip folders that previously failed
-                if folder_key in self.failed_folders:
+                # Skip folders that previously failed or were already processed
+                if folder_key in self.failed_folders or folder_key in self.processed_folders:
                     continue
                 
                 if self._is_empty_folder(folder_path):
                     success = self._remove_folder(folder_path)
                     if success:
                         pass_removed += 1
+                        # In dry-run, track as processed to prevent re-scanning
+                        if self.dry_run:
+                            self.processed_folders.add(folder_key)
                     else:
                         # Track failed folder to prevent retrying
                         self.failed_folders.add(folder_key)
@@ -193,8 +199,8 @@ class Stage2Processor:
                 if folder_path == self.input_dir:
                     continue
                 
-                # Skip folders that previously failed
-                if folder_key in self.failed_folders:
+                # Skip folders that previously failed or were already processed
+                if folder_key in self.failed_folders or folder_key in self.processed_folders:
                     continue
                 
                 # Check if folder should be flattened
@@ -202,6 +208,9 @@ class Stage2Processor:
                     success = self._flatten_folder(folder_path)
                     if success:
                         pass_flattened += 1
+                        # In dry-run, track as processed to prevent re-scanning
+                        if self.dry_run:
+                            self.processed_folders.add(folder_key)
                     else:
                         # Track failed folder to prevent retrying
                         self.failed_folders.add(folder_key)
