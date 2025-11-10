@@ -115,6 +115,67 @@ Configuration precedence: CLI flags > Config file > Built-in defaults
 
 **Note**: For operations on 100k+ files, adaptive settings ensure manageable console output and log file sizes while maintaining useful progress feedback.
 
+## Documentation Index
+
+This project has comprehensive documentation organized for different audiences and purposes.
+
+### 📖 For New Contributors
+**Start here** → [Onboarding Guide](./onboarding.md) - Complete navigation and reading guide
+
+### 📋 Core Documentation
+
+#### Overview & Planning
+- **[README.md](../README.md)** - Project overview, quick start, current status
+- **[requirements.md](./requirements.md)** - This file (high-level requirements)
+- **[project-phases.md](./project-phases.md)** - Complete roadmap, all stages, timeline
+
+#### Detailed Specifications (Implementation-Ready)
+- **[stage1_requirements.md](./stage1_requirements.md)** - Filename Detoxification (505 lines)
+  - Sanitization rules, performance targets, examples
+  - **Status**: ✅ Complete, ready for implementation
+  
+- **[stage2_requirements.md](./stage2_requirements.md)** - Folder Optimization (580 lines)
+  - Flattening logic, configuration, validation
+  - **Status**: ✅ Complete, ready for implementation
+
+#### Context & Rationale
+- **[design_decisions.md](./design_decisions.md)** - All 29 design decisions with full rationale
+  - Why each decision was made
+  - Alternatives considered
+  - Performance implications
+
+- **[agent-sessions.md](./agent-sessions.md)** - Development history
+  - Chronological work sessions
+  - Q&A that led to decisions
+  - Git commit references
+
+### 🎯 Quick Navigation
+
+**"I want to understand..."**
+- The project goals → [README.md](../README.md)
+- What each stage does → [project-phases.md](./project-phases.md)
+- Why decisions were made → [design_decisions.md](./design_decisions.md)
+- Where to start → [onboarding.md](./onboarding.md)
+
+**"I want to implement..."**
+- Stage 1 (filenames) → [stage1_requirements.md](./stage1_requirements.md)
+- Stage 2 (folders) → [stage2_requirements.md](./stage2_requirements.md)
+- Tests → See "Test Requirements" sections in stage docs
+
+**"I'm an AI agent continuing work..."**
+- Previous sessions → [agent-sessions.md](./agent-sessions.md)
+- Current status → [project-phases.md](./project-phases.md)
+- All decisions → [design_decisions.md](./design_decisions.md)
+
+### 📊 Documentation Statistics
+- **Total pages**: 7 core documents
+- **Total lines**: 2,500+ lines of specifications
+- **Design decisions**: 29 documented with rationale
+- **Agent sessions**: 4 recorded
+- **Requirements coverage**: 100% for Stages 1-2
+
+---
+
 ## Quick Reference
 
 For detailed design decisions and rationale, see [`design_decisions.md`](./design_decisions.md).
