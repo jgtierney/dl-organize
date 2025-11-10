@@ -68,12 +68,19 @@
 
 ---
 
-## 📋 Stages 3-4 (PLANNED)
+## 📋 Stage 3 (REQUIREMENTS COMPLETE)
 
-### Stage 3: Duplicate Detection
-- Hash-based duplicate identification
-- Configurable resolution policies
-- Memory-efficient processing
+### Stage 3: Duplicate Detection & Resolution
+- **Status**: Requirements Complete, Ready for Implementation
+- **Document**: [stage3_requirements.md](docs/stage3_requirements.md) (861 lines)
+- Hash-based duplicate identification (SHA-256, SHA-1, MD5, BLAKE2b)
+- Configurable resolution policies (keep_newest, keep_largest, keep_oldest, keep_first, manual)
+- Persistent hash caching for performance
+- Parallel hashing support
+- Memory-efficient processing (< 500MB for 500k files)
+- Size-based pre-filtering optimization
+
+## 📋 Stage 4 (PLANNED)
 
 ### Stage 4: File Relocation
 - Move files to organized output structure
@@ -94,8 +101,9 @@
 ### Documentation
 - `README.md` - Project overview
 - `SESSION_SUMMARY.md` - Latest session details
-- `docs/stage1_requirements.md` - Stage 1 specs (COMPLETE)
-- `docs/stage2_requirements.md` - Stage 2 specs (READY)
+- `docs/stage1_requirements.md` - Stage 1 specs (505 lines - COMPLETE)
+- `docs/stage2_requirements.md` - Stage 2 specs (580 lines - COMPLETE)
+- `docs/stage3_requirements.md` - Stage 3 specs (861 lines - COMPLETE)
 - `docs/agent-sessions.md` - All session history
 - `docs/project-phases.md` - Full project roadmap
 - `docs/design_decisions.md` - All 29 design decisions

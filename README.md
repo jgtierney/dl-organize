@@ -10,8 +10,8 @@ A powerful Python application for systematically organizing and cleaning up larg
 | Stage | Name | Status | Documentation |
 |-------|------|--------|---------------|
 | 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stage1_requirements.md) |
-| 2 | Folder Structure Optimization | ⏳ Next Up - Implementation Starting | [Details](docs/stage2_requirements.md) |
-| 3 | Duplicate Detection & Resolution | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
+| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stage2_requirements.md) |
+| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/stage3_requirements.md) |
 | 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
 
 ### 🎉 Stage 1 Achievement
@@ -39,10 +39,14 @@ The File Organizer processes directories through multiple stages:
 - Sanitizes folder names
 - **Performance**: 10k folders in ~5 minutes
 
-### Stage 3: Duplicate Detection (Planned)
-- Identifies duplicate files via hash comparison
-- Prevents duplicate collisions with output folder
-- Configurable duplicate resolution policies
+### Stage 3: Duplicate Detection & Resolution
+- **Hash-based duplicate identification** (SHA-256, SHA-1, MD5, BLAKE2b)
+- **Configurable resolution policies** (keep newest, largest, oldest, first, or manual)
+- **Persistent hash caching** for fast subsequent runs
+- **Parallel hashing** support (leverage multi-core CPUs)
+- **Size-based pre-filtering** (massive performance boost)
+- **Memory efficient**: < 500MB for 500k files
+- **Performance**: 100GB in < 5 minutes (SSD)
 
 ### Stage 4: File Relocation (Planned)
 - Moves organized files from input to output folder
@@ -171,14 +175,15 @@ file-organizer/
 ### For Developers
 - **Stage 1 specs**: [stage1_requirements.md](docs/stage1_requirements.md) - 505 lines
 - **Stage 2 specs**: [stage2_requirements.md](docs/stage2_requirements.md) - 580 lines
+- **Stage 3 specs**: [stage3_requirements.md](docs/stage3_requirements.md) - 861 lines
 - **Design rationale**: [design_decisions.md](docs/design_decisions.md) - 29 decisions
 - **Agent sessions**: [agent-sessions.md](docs/agent-sessions.md) - Development history
 
 ### Total Documentation
-- **1,639+ lines** of detailed requirements
+- **2,500+ lines** of detailed requirements
 - **29 design decisions** with rationale
-- **4 agent work sessions** documented
-- **100% coverage** of Stages 1-2
+- **Multiple agent work sessions** documented
+- **100% coverage** of Stages 1-3
 
 ## 🔒 Safety Features
 
