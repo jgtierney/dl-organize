@@ -236,7 +236,67 @@ class TestDataGenerator:
                 self.file_count += 1
             self.folder_count += 1
         
-        print(f"    Added edge cases: {len(hidden_files)} hidden files, collision tests, deep nesting, etc.")
+        # Stage 2 specific test cases
+        stage2_dir = edge_cases_dir / "stage2_tests"
+        stage2_dir.mkdir(exist_ok=True)
+        
+        # Test 1: Nested empty folders
+        nested_empty = stage2_dir / "nested_empty" / "level1" / "level2" / "level3"
+        nested_empty.mkdir(parents=True, exist_ok=True)
+        self.folder_count += 4
+        
+        # Test 2: Mixed chain with small folders
+        mixed = stage2_dir / "mixed_A"
+        mixed.mkdir(exist_ok=True)
+        mixed_b = mixed / "mixed_B"
+        mixed_b.mkdir(exist_ok=True)
+        mixed_c = mixed_b / "mixed_C"
+        mixed_c.mkdir(exist_ok=True)
+        # Add 3 files to mixed_C (< 5 items, should flatten)
+        for i in range(3):
+            (mixed_c / f"item_{i}.txt").write_text(f"Item {i}\n")
+            self.file_count += 1
+        self.folder_count += 3
+        
+        # Test 3: Folder with exactly 5 items (should NOT flatten)
+        threshold = stage2_dir / "at_threshold"
+        threshold.mkdir(exist_ok=True)
+        for i in range(5):
+            (threshold / f"file_{i}.txt").write_text(f"File {i}\n")
+            self.file_count += 1
+        self.folder_count += 1
+        
+        # Test 4: Folder with 6 items (should NOT flatten)
+        above = stage2_dir / "above_threshold"
+        above.mkdir(exist_ok=True)
+        for i in range(6):
+            (above / f"file_{i}.txt").write_text(f"File {i}\n")
+            self.file_count += 1
+        self.folder_count += 1
+        
+        # Test 5: Complex nested structure requiring multiple flattening passes
+        complex_root = stage2_dir / "complex_flattening"
+        complex_root.mkdir(exist_ok=True)
+        level1 = complex_root / "level1"
+        level1.mkdir(exist_ok=True)
+        level2 = level1 / "level2"
+        level2.mkdir(exist_ok=True)
+        level3 = level2 / "level3"
+        level3.mkdir(exist_ok=True)
+        # Add 2 files to level3 (will require 3 passes to flatten completely)
+        (level3 / "file1.txt").write_text("File 1\n")
+        (level3 / "file2.txt").write_text("File 2\n")
+        self.file_count += 2
+        self.folder_count += 4
+        
+        # Test 6: Folder name sanitization tests (Stage 2)
+        sanitize = stage2_dir / "Folder Name Sanitization" / "UPPERCASE FOLDER" / "café_français"
+        sanitize.mkdir(parents=True, exist_ok=True)
+        (sanitize / "test.txt").write_text("Test\n")
+        self.file_count += 1
+        self.folder_count += 3
+        
+        print(f"    Added edge cases: {len(hidden_files)} hidden files, collision tests, Stage 2 scenarios, etc.")
 
 
 def main():
