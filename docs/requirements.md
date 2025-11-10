@@ -4,6 +4,15 @@
 
 This document provides a high-level overview of the File Organization Application, a Linux-based tool designed to systematically organize and clean up large collections of downloaded files and folders. The application focuses on filename sanitization, folder structure optimization, and robust handling of edge cases.
 
+### Scale & System Requirements
+
+- **Target Scale**: 100,000 - 500,000 files across 1,000 - 10,000 directories
+- **Recommended System**: 32GB RAM, multi-core processor (optimized for 16+ cores)
+- **Minimum System**: 8GB RAM, dual-core processor
+- **Expected Processing Time**: 
+  - 100k files: 5-10 minutes
+  - 500k files: 25-50 minutes (on recommended hardware)
+
 ## Purpose
 
 The File Organizer addresses common problems with downloaded file collections:
@@ -80,9 +89,10 @@ Will handle moving organized files from input to output directory with classific
 1. **Safety First**: Dry-run default mode, system directory blocking, comprehensive logging, graceful error handling
 2. **Transparency**: Clear progress feedback, processing time estimates, detailed operation logs
 3. **Robustness**: Handle edge cases (symlinks, hidden files, long names, collisions, FUSE filesystems)
-4. **Performance**: Efficient in-place operations, optimized for large file collections
-5. **Unix Philosophy**: Do one thing well, composable stages
-6. **User-Friendly**: Optional configuration file, sensible defaults, clear confirmations
+4. **Performance**: Efficient in-place operations, optimized for large file collections (100k-500k files)
+5. **Scalability**: Adaptive progress reporting, memory-efficient with available resources (32GB RAM), optional multi-core processing
+6. **Unix Philosophy**: Do one thing well, composable stages
+7. **User-Friendly**: Optional configuration file, sensible defaults, clear confirmations
 
 ## Configuration
 
@@ -94,9 +104,16 @@ default_mode: dry-run          # or 'execute'
 flatten_threshold: 5           # number of items for folder flattening
 preserve_timestamps: true      # preserve original file timestamps
 log_location: cwd              # 'cwd' or absolute path
+
+# Large scale performance tuning
+progress_update_interval: auto  # auto-adapt based on file count
+max_errors_logged: 1000        # prevent log explosion
+scan_progress_interval: 10000  # files between scan updates
 ```
 
 Configuration precedence: CLI flags > Config file > Built-in defaults
+
+**Note**: For operations on 100k+ files, adaptive settings ensure manageable console output and log file sizes while maintaining useful progress feedback.
 
 ## Quick Reference
 

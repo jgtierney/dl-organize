@@ -163,9 +163,18 @@ A/
 ```yaml
 # ~/.file_organizer.yaml (optional)
 default_mode: dry-run          # or 'execute'
-flatten_threshold: 5           # number of items
+flatten_threshold: 5           # number of items for folder flattening
 preserve_timestamps: true      # preserve original file timestamps
 log_location: cwd              # 'cwd' or absolute path
+
+# Large scale performance tuning
+progress_update_interval: auto  # auto-adapt based on file count, or specify number
+max_errors_logged: 1000        # prevent log explosion with detailed errors
+scan_progress_interval: 10000  # files between scan progress updates
+
+# Future Phase 4 options (not yet implemented):
+# parallel_processing: false   # enable multi-threaded processing (16 cores available)
+# worker_threads: 8             # number of parallel workers
 ```
 
 ### 5.3 Configuration Precedence
@@ -227,15 +236,32 @@ If estimated processing time > 60 seconds (1 minute):
 - Require explicit "yes" to proceed
 - Any other input: abort gracefully
 
-#### 6.2.3 Example Confirmation Message
+#### 6.2.3 Example Confirmation Messages
+
+**Medium Scale Example**:
 ```
 WARNING: Large directory detected
   Path: /home/user/Downloads
   Files: 45,230
   Folders: 3,421
-  Estimated time: ~4.5 minutes
+  Estimated time: ~4 minutes
 
-This operation will modify file and folder names.
+This operation will modify file and folder names in place.
+Continue with processing? (yes/no):
+```
+
+**Large Scale Example**:
+```
+WARNING: Very large directory detected
+  Path: /mnt/downloads
+  Files: 347,892
+  Folders: 12,483
+  Estimated time: ~29 minutes
+  
+  System resources: 32GB RAM, 16 cores available
+  Expected memory usage: ~200-300MB
+
+This operation will modify file and folder names in place.
 Continue with processing? (yes/no):
 ```
 
@@ -332,6 +358,44 @@ shutil.move(src, dst)  # Timestamps preserved
   - Check available space on output filesystem
   - Require at least 110% of input size (10% safety margin)
   - Abort if insufficient space
+
+### 7.7 Large Scale Operations
+
+#### 7.7.1 Scale Specification
+- **Target scale**: 100,000 - 500,000 files across 1,000 - 10,000 directories
+- **System resources**: 32GB RAM, 16-core processor available
+- Folders will be processed efficiently regardless of scale
+
+#### 7.7.2 Iterative Flattening at Scale
+When processing thousands of directories:
+- Process bottom-up (deepest folders first)
+- May require multiple passes for complete flattening
+- Each pass processes newly-flattened folders
+- Continue until no more flattening possible
+- Progress tracking per pass
+
+**Example with 10,000 directories**:
+```
+Pass 1: Flattened 3,245 folders
+Pass 2: Flattened 1,832 folders  
+Pass 3: Flattened 421 folders
+Pass 4: Flattened 89 folders
+Pass 5: No changes - flattening complete
+Total: 5,587 folders flattened, 4,413 remaining
+```
+
+#### 7.7.3 Memory Efficiency
+- With 32GB RAM: Can load full directory structure in memory
+- 10k folders ≈ 10-50 MB in memory
+- Collision tracking: Dict per directory (scales efficiently)
+- No streaming required - full tree processing is optimal
+
+#### 7.7.4 Progress Reporting at Scale
+- Adaptive progress updates (consistent with Stage 1)
+- For folder operations on large scale:
+  - Report every 100 folders for 1,000-10,000 folders
+  - Report every 500 folders for 10,000+ folders
+- Clear indication of which pass is running (for iterative flattening)
 
 ---
 
@@ -474,11 +538,16 @@ Stage 2 will be considered complete when:
 2. Configuration precedence logic
 3. Config file validation
 
-### Phase 4: Edge Cases
-1. FUSE filesystem testing
-2. Network filesystem handling
-3. Timestamp preservation verification
-4. Large directory tree optimization
+### Phase 4: Large Scale & Performance Optimization
+1. Large directory tree optimization (100k-500k files)
+2. Memory usage validation and optimization
+3. Adaptive progress reporting implementation
+4. Log size management for large operations
+5. Performance testing with realistic datasets (100k+ files)
+6. FUSE filesystem testing
+7. Network filesystem handling
+8. Timestamp preservation verification
+9. **Optional**: Multi-threaded processing (leverage 16 available cores)
 
 ---
 

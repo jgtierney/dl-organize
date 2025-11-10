@@ -188,14 +188,68 @@ When two or more files would have the same name after sanitization:
 
 ### 1. Performance
 
-#### 1.1 Progress Feedback
-- Display a progress bar during processing
-- Print status every 10 files: `50/1754 processed`
-- Update progress bar continuously
+#### 1.1 Scale Requirements
+- **Target scale**: 100,000 - 500,000 files across 1,000 - 10,000 directories
+- **System requirements**: Optimized for systems with 32GB RAM and multi-core processors
+- Must handle large-scale operations efficiently without performance degradation
 
-#### 1.2 Expected Performance
-- Should handle 10,000+ files efficiently
-- No specific speed requirement, but operations should be file I/O bound, not CPU bound
+#### 1.2 Initial Directory Scan Phase
+Before processing begins, scan the directory tree to count files and folders:
+
+**Scan Process**:
+- Display "Scanning directory tree..." message
+- Show periodic scan progress: "Scanning: 50,000 files, 2,341 folders..."
+- Update every 10,000 files during scan
+- Build complete file list in memory (with 32GB RAM available, 500k files ≈ 50-200MB)
+
+**Scan Performance**:
+- Expected: 10,000 - 50,000 files/second (count only)
+- 100k files: 2-10 seconds
+- 500k files: 10-50 seconds (depends on filesystem)
+
+**Completion Message**:
+```
+Scan complete: 347,892 files in 12,483 folders
+Estimated processing time: ~29 minutes
+```
+
+#### 1.3 Progress Feedback (Adaptive)
+- Display a progress bar during processing (continuous updates)
+- Print periodic status updates with adaptive frequency based on total file count:
+  - **< 1,000 files**: Every 10 files (`50/754 processed`)
+  - **1,000 - 10,000 files**: Every 100 files (`2,300/8,421 processed`)
+  - **10,000 - 100,000 files**: Every 500 files (`45,500/87,234 processed`)
+  - **100,000+ files**: Every 1,000 files (`234,000/456,789 processed`)
+
+**Rationale**: Adaptive frequency prevents console spam for large operations while maintaining useful feedback.
+
+#### 1.4 Expected Performance
+- **Must efficiently handle 100,000 - 500,000 files**
+- Processing speed: 200-500 files/second (typical)
+- Operations are primarily I/O bound, not CPU bound
+
+**Performance Targets** (with available hardware: 32GB RAM, 16 cores):
+- 100,000 files: 5-10 minutes
+- 250,000 files: 12-25 minutes
+- 500,000 files: 25-50 minutes
+
+**Factors Affecting Performance**:
+- Filesystem type (ext4 faster, FUSE/network slower)
+- Storage speed (SSD vs HDD)
+- Number of rename operations required
+- Collision frequency
+
+#### 1.5 Memory Usage
+- **Load complete directory tree into memory** (with 32GB RAM, this is efficient)
+- Expected memory usage:
+  - 100k files: ~50-100 MB
+  - 500k files: ~200-500 MB
+  - Well within available 32GB RAM (< 2%)
+- Benefits of in-memory approach:
+  - Faster processing (no re-scanning)
+  - Accurate progress tracking (know total upfront)
+  - Better collision detection (full tree view)
+  - Simpler state management
 
 ### 2. Error Handling
 
@@ -222,10 +276,11 @@ When two or more files would have the same name after sanitization:
 - Create log in the **current working directory** (where the command is run)
 - Log filename format: `file_organizer_YYYYMMDD_HHMMSS.log`
 
-#### 3.2 Log Content (Minimal Detail Level)
+#### 3.2 Log Content (Minimal Detail Level - Scale Appropriate)
 - Operation start time and parameters
-- Errors encountered (with file paths)
-- Files that were skipped and why
+- System information (RAM, scale of operation)
+- Errors encountered (with file paths) - **limited to first 1,000 errors**
+- If errors exceed 1,000: Log summary ("... and 5,432 additional errors - see error summary at end")
 - Summary statistics:
   - Total files scanned
   - Files renamed
@@ -233,20 +288,41 @@ When two or more files would have the same name after sanitization:
   - Symlinks processed
   - Files skipped (errors)
   - Collisions resolved
+- Milestone progress markers (every 10% or 50,000 files for large operations)
 - Operation end time and duration
 
+**What NOT to Log** (to keep log files manageable):
+- Do NOT log every individual file rename (would create GB-sized logs for 100k+ files)
+- Do NOT log every successful operation
+- Only log errors and summary statistics
+
+**Target Log File Size**:
+- Small operations (< 10k files): < 100 KB
+- Medium operations (10k - 100k files): 100 KB - 1 MB
+- Large operations (100k - 500k files): 1-10 MB
+
 #### 3.3 Log Format
+**Example for Large Scale Operation**:
 ```
-2023-11-08 14:30:22 - INFO - File Organizer Stage 1 started
-2023-11-08 14:30:22 - INFO - Input directory: /home/user/Downloads
-2023-11-08 14:30:22 - INFO - Mode: DRY-RUN (preview only)
-2023-11-08 14:30:23 - INFO - Scanning directory tree...
-2023-11-08 14:30:25 - INFO - Found 1754 files and 42 folders
-2023-11-08 14:30:25 - INFO - Processing files...
-2023-11-08 14:30:26 - ERROR - Permission denied: /path/to/file.txt
-2023-11-08 14:30:27 - INFO - Deleted hidden file: /path/.DS_Store
-2023-11-08 14:32:15 - INFO - Processing complete
-2023-11-08 14:32:15 - INFO - Summary: 1754 scanned, 1203 renamed, 15 deleted, 3 skipped, 8 collisions
+2023-11-10 14:30:22 - INFO - File Organizer Stage 1 started
+2023-11-10 14:30:22 - INFO - System: 32GB RAM, 16 cores available
+2023-11-10 14:30:22 - INFO - Input directory: /mnt/downloads
+2023-11-10 14:30:22 - INFO - Mode: EXECUTE
+2023-11-10 14:30:23 - INFO - Scanning directory tree...
+2023-11-10 14:30:27 - INFO - Scanning: 100,000 files, 3,245 folders...
+2023-11-10 14:30:32 - INFO - Scanning: 200,000 files, 6,891 folders...
+2023-11-10 14:30:38 - INFO - Scan complete: 347,892 files in 12,483 folders
+2023-11-10 14:30:38 - INFO - Estimated processing time: ~29 minutes
+2023-11-10 14:30:38 - INFO - Processing files...
+2023-11-10 14:32:15 - ERROR - Permission denied: /mnt/downloads/locked/file.txt
+2023-11-10 14:35:42 - INFO - Progress milestone: 50,000/347,892 processed (14%)
+2023-11-10 14:40:18 - INFO - Progress milestone: 100,000/347,892 processed (29%)
+2023-11-10 14:45:03 - INFO - Progress milestone: 150,000/347,892 processed (43%)
+... [more progress markers] ...
+2023-11-10 14:59:47 - INFO - Processing complete
+2023-11-10 14:59:47 - INFO - Summary: 347,892 scanned, 289,431 renamed, 1,247 deleted (hidden), 
+                                234 symlinks removed, 12 skipped (errors), 5,632 collisions resolved
+2023-11-10 14:59:47 - INFO - Duration: 29 minutes 25 seconds
 ```
 
 ### 4. Safety Features

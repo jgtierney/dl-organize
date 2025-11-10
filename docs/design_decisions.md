@@ -28,7 +28,7 @@ This document provides a quick reference table of all design decisions made duri
 | **18** | **Multiple Consecutive Special Chars** | How to handle `file___name.txt`? | **A**: Collapse to single underscore → `file_name.txt` | Cleaner output, removes redundant separators |
 | **19** | **Leading/Trailing Special Chars** | How to handle `_file_` or `..name..`? | **A**: Strip leading and trailing underscores/periods | Cleaner names, removes edge artifacts |
 | **20** | **CLI Format** | What should the command syntax be? | `file-organizer -if /path/to/directory [-of /path/to/output]` | Explicit input/output flags, extensible for future stages |
-| **21** | **Progress Feedback** | How to show progress for large operations? | **B**: Progress bar + print every 10th file with `50/1754 processed` format | Balanced feedback, not overwhelming, shows real progress |
+| **21** | **Progress Feedback** | How to show progress for large operations? | **Adaptive**: Scale frequency with file count (10/100/500/1000 files) | Prevents console spam for large ops, maintains useful feedback |
 | **22** | **Input/Output Structure** | Should Stages 1-2 support output folder? | **A**: In-place operations only (no `-of` flag for Stages 1-2) | Simpler implementation, `-of` reserved for Stage 3 file relocation |
 | **23** | **Execute Confirmation** | How to confirm execution? | **B**: Require explicit `--execute` flag, no prompts (non-interactive) | Already decided - fully automated, no interactive prompts |
 | **24** | **Dependencies Policy** | Policy for external libraries? | **C**: Case-by-case decisions, no strict policy | Flexibility to add useful libraries when needed, practical approach |
@@ -41,6 +41,7 @@ This document provides a quick reference table of all design decisions made duri
 | **28.4** | **Network/FUSE** | Special handling for network filesystems? | Support FUSE, handle errors like permission errors | User mentioned FUSE usage, treat network errors gracefully |
 | **28.5** | **Case Sensitivity** | Handle case-insensitive filesystems? | No special handling needed | All lowercase in Stage 1, ext4 is case-sensitive |
 | **28.6** | **Disk Space** | Check available disk space? | Not for Stages 1-2 (in-place), yes for Stage 3 (output folder) | In-place renames don't consume space, copying does |
+| **29** | **Large Scale Optimization** | How to handle 100k-500k files efficiently? | Load full tree in memory, adaptive progress, limited logging, single-threaded (Phase 4: optional multi-core) | System has 32GB RAM & 16 cores - leverage resources for performance |
 
 ---
 
@@ -233,23 +234,28 @@ AFTER:  A/file.txt (both flattened)
 
 ---
 
-### Decision 21: Progress Bar + Periodic Updates
-**Problem**: Users need feedback during long operations.
+### Decision 21: Adaptive Progress Reporting
+**Problem**: Users need feedback during long operations, but at scale (100k+ files), printing every 10 files creates 10,000+ console updates.
 
 **Considered Options**:
 - Silent (no progress)
 - Progress bar only
-- Print every file (too verbose)
-- **Progress bar + print every Nth file** ✓
+- Print every 10 files (too verbose at scale)
+- **Progress bar + adaptive frequency** ✓
 
-**Chosen**: Progress bar with status updates every 10 files: `50/1754 processed`
+**Chosen**: Progress bar (continuous) with adaptive status updates:
+- **< 1,000 files**: Every 10 files (`50/754 processed`)
+- **1,000 - 10,000 files**: Every 100 files (`2,300/8,421 processed`)
+- **10,000 - 100,000 files**: Every 500 files (`45,500/87,234 processed`)
+- **100,000+ files**: Every 1,000 files (`234,000/456,789 processed`)
 
 **Reasoning**:
 - Progress bar shows visual completion
-- Periodic counts provide concrete numbers
-- Every 10 files balances feedback with noise
-- Format `XX/YY processed` is clear and informative
-- Doesn't overwhelm terminal output
+- Adaptive frequency scales with operation size
+- Prevents console spam (100k files = 100 updates, not 10,000)
+- Still provides concrete numbers at useful intervals
+- Format `XX/YY processed` remains clear and informative
+- Balances feedback with performance at all scales
 
 ---
 
@@ -379,6 +385,64 @@ log_location: cwd
 
 ---
 
+### Decision 29: Large Scale Optimization Strategy
+**Problem**: How to efficiently handle 100,000-500,000 files across thousands of directories?
+
+**Context**: User has 32GB RAM and 16-core processor available for operations.
+
+**Considered Options**:
+- Streaming/generator approach (memory-efficient but slower)
+- Load full tree in memory (leverages available RAM) ✓
+- Parallel processing from the start
+- Single-threaded with optional parallelization ✓
+
+**Chosen**: Multi-faceted approach leveraging available hardware:
+
+1. **Load Full Directory Tree in Memory**
+   - With 32GB RAM, 500k files ≈ 50-200MB (< 1% of RAM)
+   - Enables faster processing, accurate progress tracking
+   - Better collision detection with full tree view
+
+2. **Adaptive Progress Reporting**
+   - Scale update frequency with file count
+   - Prevents console spam (100k files = 100 updates, not 10,000)
+   - See Decision 21 for details
+
+3. **Limited Error Logging**
+   - Log first 1,000 detailed errors, then summarize
+   - Prevents GB-sized log files
+   - Target: 1-10MB logs for 500k files
+
+4. **Single-Threaded Initially**
+   - File I/O is typically the bottleneck, not CPU
+   - Simpler implementation and debugging
+   - Likely sufficient for performance targets
+
+5. **Optional Multi-Core Processing (Phase 4)**
+   - 16 cores available if performance testing shows benefit
+   - Can parallelize file processing operations
+   - Requires thread-safe collision tracking
+
+**Reasoning**:
+- **Hardware-appropriate**: Use available resources (32GB RAM)
+- **Performance targets achievable**:
+  - 100k files: 5-10 minutes
+  - 500k files: 25-50 minutes
+- **Scalability**: Approaches scale linearly with file count
+- **Maintainability**: Start simple (single-threaded), optimize if needed
+- **User experience**: Fast scanning, clear progress, manageable logs
+
+**Memory Footprint**:
+- 500k files × 100 bytes/file ≈ 50MB
+- Collision tracking + state ≈ 50-100MB
+- Total: < 500MB (< 2% of available 32GB RAM)
+
+**Performance Comparison**:
+- Streaming approach: Lower memory, but must re-scan for each stage
+- In-memory approach: Higher memory (but trivial at 32GB), single scan, faster overall
+
+---
+
 ## Principles Derived from Decisions
 
 ### Safety First
@@ -427,6 +491,7 @@ log_location: cwd
 |---------|------|---------|
 | 1.0 | 2023-11-08 | Initial design decisions documented (Decisions 1-21) |
 | 2.0 | 2023-11-10 | Stage 2 finalized: Added decisions 22-28, all specifications complete |
+| 2.1 | 2023-11-10 | Large scale optimization: Updated Decision 21 (adaptive progress), added Decision 29 (scale strategy for 100k-500k files with 32GB RAM/16 cores) |
 
 ---
 
