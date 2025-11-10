@@ -57,7 +57,7 @@ Focuses on cleaning and standardizing individual file and folder names:
 - Extension normalization
 
 ### Stage 2: Folder Structure Optimization
-**Status**: Requirements In Progress  
+**Status**: Requirements Complete  
 **Document**: [`stage2_requirements.md`](./stage2_requirements.md)
 
 Optimizes directory hierarchy:
@@ -65,6 +65,9 @@ Optimizes directory hierarchy:
 - Folder chain flattening (< 5 items threshold)
 - Folder deduplication
 - Structure simplification
+- Configuration file support
+- Target directory validation
+- Processing time estimation
 
 ### Stage 3: File Relocation
 **Status**: Planning Phase  
@@ -74,11 +77,26 @@ Will handle moving organized files from input to output directory with classific
 
 ## Design Philosophy
 
-1. **Safety First**: Dry-run default mode, comprehensive logging, graceful error handling
-2. **Transparency**: Clear progress feedback, detailed operation logs
-3. **Robustness**: Handle edge cases (symlinks, hidden files, long names, collisions)
-4. **Performance**: Efficient processing of large file collections
+1. **Safety First**: Dry-run default mode, system directory blocking, comprehensive logging, graceful error handling
+2. **Transparency**: Clear progress feedback, processing time estimates, detailed operation logs
+3. **Robustness**: Handle edge cases (symlinks, hidden files, long names, collisions, FUSE filesystems)
+4. **Performance**: Efficient in-place operations, optimized for large file collections
 5. **Unix Philosophy**: Do one thing well, composable stages
+6. **User-Friendly**: Optional configuration file, sensible defaults, clear confirmations
+
+## Configuration
+
+The application supports an optional YAML configuration file at `~/.file_organizer.yaml`:
+
+```yaml
+# Optional configuration file
+default_mode: dry-run          # or 'execute'
+flatten_threshold: 5           # number of items for folder flattening
+preserve_timestamps: true      # preserve original file timestamps
+log_location: cwd              # 'cwd' or absolute path
+```
+
+Configuration precedence: CLI flags > Config file > Built-in defaults
 
 ## Quick Reference
 

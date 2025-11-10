@@ -29,6 +29,18 @@ This document provides a quick reference table of all design decisions made duri
 | **19** | **Leading/Trailing Special Chars** | How to handle `_file_` or `..name..`? | **A**: Strip leading and trailing underscores/periods | Cleaner names, removes edge artifacts |
 | **20** | **CLI Format** | What should the command syntax be? | `file-organizer -if /path/to/directory [-of /path/to/output]` | Explicit input/output flags, extensible for future stages |
 | **21** | **Progress Feedback** | How to show progress for large operations? | **B**: Progress bar + print every 10th file with `50/1754 processed` format | Balanced feedback, not overwhelming, shows real progress |
+| **22** | **Input/Output Structure** | Should Stages 1-2 support output folder? | **A**: In-place operations only (no `-of` flag for Stages 1-2) | Simpler implementation, `-of` reserved for Stage 3 file relocation |
+| **23** | **Execute Confirmation** | How to confirm execution? | **B**: Require explicit `--execute` flag, no prompts (non-interactive) | Already decided - fully automated, no interactive prompts |
+| **24** | **Dependencies Policy** | Policy for external libraries? | **C**: Case-by-case decisions, no strict policy | Flexibility to add useful libraries when needed, practical approach |
+| **25** | **Configuration File** | Support persistent configuration? | **B**: Optional YAML config file (`~/.file_organizer.yaml`) | Convenience for repeated use, CLI flags override, graceful if missing |
+| **26** | **Directory Validation** | How strict should path validation be? | **D**: Strict validation + confirmation for large dirs (>1min estimate) | Block system directories, warn on large operations, maximum safety |
+| **27** | **Filename Truncation** | How to truncate long filenames? | **C**: Smart truncate preserving extension | Already decided in Stage 1 - preserve extension integrity |
+| **28.1** | **File Timestamps** | Preserve or update timestamps? | Preserve original timestamps using `shutil.move()` | Easiest implementation, maintains file history |
+| **28.2** | **Locked Files** | Handle files in use? | Skip with error log, continue processing | Robust operation, don't abort on single file failure |
+| **28.3** | **Recursion Depth** | Set maximum depth limit? | No limit, symlinks already handled | Python default sufficient, symlink loops prevented in Stage 1 |
+| **28.4** | **Network/FUSE** | Special handling for network filesystems? | Support FUSE, handle errors like permission errors | User mentioned FUSE usage, treat network errors gracefully |
+| **28.5** | **Case Sensitivity** | Handle case-insensitive filesystems? | No special handling needed | All lowercase in Stage 1, ext4 is case-sensitive |
+| **28.6** | **Disk Space** | Check available disk space? | Not for Stages 1-2 (in-place), yes for Stage 3 (output folder) | In-place renames don't consume space, copying does |
 
 ---
 
@@ -241,43 +253,171 @@ AFTER:  A/file.txt (both flattened)
 
 ---
 
-## Open Questions
+### Decision 22: In-Place Operations Only (Stages 1-2)
+**Problem**: Should Stages 1-2 support an output folder, or operate in-place?
 
-See [`stage2_requirements.md`](./stage2_requirements.md) for questions that still need answers:
+**Considered Options**:
+- In-place only (modify source directory) ✓
+- Support optional output folder now
+- Other approach
 
-- **Question 22**: Input/output folder structure for Stages 1-2
-- **Question 24**: Dependency policy (external libraries)
-- **Question 25**: Configuration file support
-- **Question 26**: Target directory validation strictness
-- **Question 28**: Additional edge cases and requirements
+**Chosen**: In-place operations only for Stages 1-2.
+
+**Reasoning**:
+- Simpler implementation (no copying logic)
+- Faster execution (rename vs copy)
+- No additional disk space required
+- `-of` flag reserved for Stage 3 (file relocation/organization)
+- User can make backup before running if desired
+- Dry-run mode provides safety
+
+---
+
+### Decision 25: Optional YAML Configuration File
+**Problem**: Should the application support persistent configuration?
+
+**Considered Options**:
+- No config file (CLI only)
+- Optional config file ✓
+- Required config file
+
+**Chosen**: Support optional YAML configuration file at `~/.file_organizer.yaml`.
+
+**Reasoning**:
+- Convenience for users who run frequently
+- CLI flags can override config settings
+- Graceful fallback if config missing
+- YAML is human-readable and widely used
+- Not required (low barrier to entry)
+- Supports sensible defaults without configuration
+
+**Example Config**:
+```yaml
+default_mode: dry-run
+flatten_threshold: 5
+preserve_timestamps: true
+log_location: cwd
+```
+
+---
+
+### Decision 26: Strict Validation + Confirmation
+**Problem**: How to prevent accidental damage to system files or large directories?
+
+**Considered Options**:
+- Basic validation only
+- Strict system directory blocking
+- Confirmation prompts
+- Combination (strict + confirmation) ✓
+
+**Chosen**: Strict validation blocking system directories, plus confirmation for operations > 1 minute estimated.
+
+**Reasoning**:
+- **System directory blocking**: Prevents catastrophic mistakes
+  - Block: `/`, `/usr`, `/bin`, `/sbin`, `/etc`, `/boot`, `/sys`, `/proc`, `/dev`, `/lib`
+  - Allow: `/home/username/...`, `/tmp`, `/opt`, `/mnt`, `/media`
+- **Time-based confirmation**: User explicitly confirms large operations
+  - Estimate: ~100-200 files/second
+  - Prompt if > 60 seconds estimated
+  - Shows file count, folder count, estimated time
+- **Layered safety**: Multiple safeguards better than one
+- **User-friendly**: Doesn't block legitimate use cases
+
+---
+
+### Decision 28: Edge Case Specifications
+**Problem**: Multiple edge cases need clear handling rules.
+
+#### 28.1: Preserve File Timestamps
+**Chosen**: Preserve original timestamps automatically.
+**Reasoning**:
+- Easiest implementation (`shutil.move()` preserves by default)
+- Maintains file history and provenance
+- Expected behavior for file organization tools
+- No additional code required
+
+#### 28.2: Skip Locked Files
+**Chosen**: Catch errors, log, skip, continue.
+**Reasoning**:
+- Robust operation (one failure doesn't abort everything)
+- Clear error reporting in logs
+- User can manually handle problem files later
+- Matches overall error handling philosophy
+
+#### 28.3: No Recursion Depth Limit
+**Chosen**: No arbitrary depth limit enforced.
+**Reasoning**:
+- Python's default recursion limit (~1000 levels) is sufficient
+- Real-world directories rarely exceed 20-30 levels
+- Symlink loops already prevented (symlinks broken in Stage 1)
+- Unnecessary complexity to add artificial limit
+
+#### 28.4: FUSE Filesystem Support
+**Chosen**: Support FUSE, handle errors gracefully.
+**Reasoning**:
+- User specifically mentioned using FUSE filesystems
+- Treat network/FUSE errors same as permission errors (skip and log)
+- No special code needed, just error handling
+- Examples: sshfs, encfs, s3fs
+
+#### 28.5: Case Sensitivity Handling
+**Chosen**: No special handling needed.
+**Reasoning**:
+- All filenames lowercase after Stage 1
+- Case collisions resolved in Stage 1
+- Ubuntu default (ext4) is case-sensitive
+- Case-insensitive filesystems rare on Linux
+
+#### 28.6: Disk Space Validation
+**Chosen**: No check for Stages 1-2; add for Stage 3+.
+**Reasoning**:
+- **Stages 1-2**: In-place renames/moves don't consume disk space
+- **Stage 3+**: Copying to output folder requires space check
+  - Calculate total input size
+  - Verify output filesystem has 110% of input size (safety margin)
+  - Abort if insufficient space
 
 ---
 
 ## Principles Derived from Decisions
 
 ### Safety First
-- Dry-run default
+- Dry-run default mode
+- System directory blocking
+- Confirmation for large operations
 - Continue on errors (don't abort entire operation)
-- Clear logging
-- Graceful degradation (permissions)
+- Clear logging and error reporting
+- Graceful degradation (permissions, ownership)
+- Preserve file timestamps
 
 ### Clarity and Consistency
-- All lowercase
+- All lowercase filenames
 - Underscores as separators
 - Single extension per file
-- Predictable collision naming
+- Predictable collision naming (date + counter)
+- ASCII-only characters
 
 ### Simplification
-- Remove hidden files
-- Break symlinks
-- Flatten unnecessary nesting
+- Remove hidden files and clutter
+- Break symlinks to avoid complexity
+- Flatten unnecessary nesting (< 5 items threshold)
 - Collapse redundant characters
+- In-place operations (no copying)
 
 ### User-Friendly
-- Progress feedback
+- Progress feedback (bar + periodic counts)
 - Minimal but sufficient logging
 - Clear error messages
 - Predictable behavior
+- Optional configuration file
+- Flexible dependency policy
+
+### Robustness
+- Skip locked files, continue processing
+- Support FUSE and network filesystems
+- Handle edge cases gracefully
+- No arbitrary limits (recursion depth)
+- Cross-platform ASCII compatibility
 
 ---
 
@@ -285,7 +425,8 @@ See [`stage2_requirements.md`](./stage2_requirements.md) for questions that stil
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2023-11-08 | Initial design decisions documented |
+| 1.0 | 2023-11-08 | Initial design decisions documented (Decisions 1-21) |
+| 2.0 | 2023-11-10 | Stage 2 finalized: Added decisions 22-28, all specifications complete |
 
 ---
 

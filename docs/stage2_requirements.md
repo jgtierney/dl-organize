@@ -4,11 +4,11 @@
 
 Stage 2 focuses on optimizing the directory hierarchy after filenames have been cleaned in Stage 1. This stage removes clutter, flattens unnecessary folder chains, and streamlines the overall folder structure.
 
-**Status**: Requirements In Progress (Open Questions Remain)
+**Status**: Requirements Complete
 
 ---
 
-## Known Requirements
+## Functional Requirements
 
 ### 1. Empty Folder Removal
 
@@ -151,97 +151,187 @@ A/
 
 ---
 
-## Open Questions and Design Decisions
+## Configuration File Support
 
-The following questions need to be answered before Stage 2 can be fully specified:
+### 5.1 Optional Configuration File
+- Support optional YAML configuration file: `~/.file_organizer.yaml`
+- If file exists, load defaults from it
+- CLI flags override config file settings
+- If file doesn't exist, use built-in defaults
 
-### Question 22: Input/Output Folder Structure
-**Context**: User mentioned a future stage that will relocate files from input to output folder.
+### 5.2 Configuration File Format
+```yaml
+# ~/.file_organizer.yaml (optional)
+default_mode: dry-run          # or 'execute'
+flatten_threshold: 5           # number of items
+preserve_timestamps: true      # preserve original file timestamps
+log_location: cwd              # 'cwd' or absolute path
+```
 
-**Options**:
-- a) For Stages 1-2, operate in-place on a single directory (no `-of` flag yet)
-- b) Implement `-if` and `-of` now, making `-of` optional (defaults to in-place if not specified)
-- c) Other approach?
-
-**Impact**: Affects CLI interface design and how file operations are handled.
-
----
-
-### Question 23: Execute Confirmation Flow
-**Context**: Default is dry-run mode, but execution flow needs clarification.
-
-**Options**:
-- a) After dry-run, show summary and prompt "Execute these changes? (yes/no)"
-- b) Require explicit `--execute` flag, no prompts (fully non-interactive)
-- c) Dry-run by default, but `--execute` also shows preview and prompts for confirmation
-
-**Current Decision**: Option b (from earlier answer 8b) - require `--execute` flag, no prompts
-**Status**: ✓ Confirmed
+### 5.3 Configuration Precedence
+1. CLI flags (highest priority)
+2. Config file settings
+3. Built-in defaults (lowest priority)
 
 ---
 
-### Question 24: Dependency on External Libraries
-**Context**: Stage 1 uses `unidecode` for transliteration. What's the policy for dependencies?
+## Safety and Validation
 
-**Options**:
-- a) Acceptable - include in requirements.txt
-- b) Prefer standard library only where possible
-- c) No preference
+### 6.1 Target Directory Validation
 
-**Impact**: Affects maintainability, installation complexity, and feature availability.
+#### 6.1.1 Blocked System Directories
+The following directories are **strictly forbidden** and will cause immediate abort:
+- `/` (root)
+- `/usr`, `/usr/*`
+- `/bin`, `/sbin`
+- `/etc`
+- `/boot`
+- `/sys`, `/proc`, `/dev`
+- `/lib`, `/lib64`
+
+#### 6.1.2 Allowed Directories
+- User home directories: `/home/username/...`
+- `/tmp` and subdirectories
+- `/opt` and subdirectories
+- `/var` (with caution warning)
+- `/mnt` and `/media` (mounted filesystems)
+- Any directory under user home
+
+#### 6.1.3 Path Validation Process
+```python
+# Pseudocode for validation
+1. Verify path exists
+2. Verify path is a directory
+3. Convert to absolute path
+4. Check against blocked directories list
+5. If blocked: abort with error message
+6. If allowed: proceed to size estimation
+```
+
+### 6.2 Processing Time Estimation and Confirmation
+
+#### 6.2.1 Estimation Logic
+Before processing, estimate time based on file/folder count:
+- Scan directory tree (quick count)
+- Estimate: ~100-200 files per second (conservative)
+- Calculate estimated time
+
+#### 6.2.2 Confirmation Threshold
+If estimated processing time > 60 seconds (1 minute):
+- Display warning with details:
+  - Total files found
+  - Total folders found
+  - Estimated processing time
+  - Target directory path
+- Prompt for confirmation: `Continue with processing? (yes/no)`
+- Require explicit "yes" to proceed
+- Any other input: abort gracefully
+
+#### 6.2.3 Example Confirmation Message
+```
+WARNING: Large directory detected
+  Path: /home/user/Downloads
+  Files: 45,230
+  Folders: 3,421
+  Estimated time: ~4.5 minutes
+
+This operation will modify file and folder names.
+Continue with processing? (yes/no):
+```
+
+### 6.3 Dry-Run Safety
+- Dry-run is the **default mode**
+- Must use `--execute` flag to actually perform operations
+- Dry-run shows preview of all changes
+- No confirmation prompts in dry-run (always safe)
 
 ---
 
-### Question 25: Configuration File Support
-**Context**: Should the application support persistent configuration?
+## Edge Cases and Additional Requirements
 
-**Options**:
-- a) Not needed - CLI flags are sufficient
-- b) Support optional config file (e.g., `~/.file_organizer.yaml`)
-- c) Required config file for safety
+### 7.1 File Timestamps
 
-**Impact**: Affects user experience and complexity of default settings.
+#### 7.1.1 Preservation Strategy
+- **Preserve original timestamps** by default
+- Use `shutil.move()` which preserves timestamps automatically
+- Maintain:
+  - Last modified time (mtime)
+  - Last access time (atime)
+  - Creation time (ctime) where supported
 
----
+#### 7.1.2 Implementation Note
+```python
+# shutil.move() preserves timestamps by default
+shutil.move(src, dst)  # Timestamps preserved
+```
 
-### Question 26: Target Directory Validation
-**Context**: Safety measures to prevent running on system directories.
+### 7.2 Locked and In-Use Files
 
-**Options**:
-- a) Basic validation: path must exist and be a directory
-- b) Strict validation: prevent running on system directories (/, /usr, /etc, /home)
-- c) Require explicit confirmation for directories containing > X files (what threshold?)
+#### 7.2.1 Error Handling
+- Catch `PermissionError` and `OSError` exceptions
+- Log the error with full path
+- Skip the problematic file
+- Continue processing remaining files
+- Include in final error summary
 
-**Impact**: Prevents accidental destruction of critical system files.
+#### 7.2.2 Example Error Log
+```
+2023-11-08 14:32:15 - ERROR - Permission denied: /path/to/locked_file.txt
+2023-11-08 14:32:15 - INFO - Skipping locked file, continuing...
+```
 
----
+### 7.3 Recursion and Directory Depth
 
-### Question 27: Filename Truncation Details
-**Context**: When filename exceeds 200 characters, how exactly to truncate?
+#### 7.3.1 No Arbitrary Depth Limit
+- No maximum recursion depth enforced
+- Python's default recursion limit (~1000) is sufficient
+- Real-world directory trees rarely exceed 20-30 levels
 
-**Options**:
-- a) Truncate from the middle of basename: `very_long_name_here.txt` → `very_long_..._here.txt`
-- b) Truncate from the end of basename: `very_long_name_here.txt` → `very_long_na.txt`
-- c) Smart truncate preserving extension: ensure `.txt` stays intact
+#### 7.3.2 Symlink Loop Prevention
+- Symlinks are broken/removed in Stage 1
+- No risk of infinite loops from symlinks
+- Only process actual directories, never follow links
 
-**Current Decision**: Option c appears to be the intent (preserve extension)
-**Status**: ✓ Clarified in Stage 1 requirements
+### 7.4 Filesystem Support
 
----
+#### 7.4.1 Primary Target
+- Local ext4 filesystems (Ubuntu standard)
+- All operations tested on ext4
 
-### Question 28: Additional Requirements
-**Context**: Are there other requirements, constraints, or edge cases for Stages 1-2?
+#### 7.4.2 FUSE Filesystem Support
+- FUSE filesystems are supported
+- Examples: sshfs, encfs, s3fs, etc.
+- May have slower performance than native filesystems
+- Same validation and safety rules apply
 
-**Areas to consider**:
-- Handling of special Linux directories (e.g., `/proc`, `/sys`)
-- Maximum recursion depth limits
-- Handling of files currently in use / locked
-- Behavior when disk space is low
-- Network filesystem considerations
-- Case-sensitive vs case-insensitive filesystem handling
-- Handling of file timestamps (preserve or update?)
-- Support for parallel/concurrent processing
-- Memory usage constraints for large directory trees
+#### 7.4.3 Network Filesystems
+- NFS and SMB mounts should work
+- Performance may be slower
+- Network errors handled same as permission errors (skip and log)
+
+### 7.5 Case Sensitivity
+
+#### 7.5.1 Filesystem Handling
+- All filenames converted to lowercase in Stage 1
+- Case collisions resolved before Stage 2
+- Case-insensitive filesystems (rare on Linux) won't cause issues
+- Ubuntu default (ext4) is case-sensitive
+
+### 7.6 Disk Space Validation
+
+#### 7.6.1 Stages 1-2 (In-Place Operations)
+- **No disk space check required**
+- Operations are renames/moves within same filesystem
+- Renames don't consume additional space
+- No data duplication occurs
+
+#### 7.6.2 Future Stages (Output Folder)
+- **Stage 3 and beyond**: Disk space check required
+- Before copying to output folder:
+  - Calculate total size of input directory
+  - Check available space on output filesystem
+  - Require at least 110% of input size (10% safety margin)
+  - Abort if insufficient space
 
 ---
 
@@ -343,7 +433,7 @@ test_stage2/
 
 ---
 
-## Success Criteria (Preliminary)
+## Success Criteria
 
 Stage 2 will be considered complete when:
 
@@ -357,29 +447,64 @@ Stage 2 will be considered complete when:
 8. Dry-run mode shows accurate preview
 9. Integration with Stage 1 is seamless
 10. All tests pass
+11. Configuration file support is implemented
+12. Target directory validation prevents system directory modification
+13. Processing time estimation and confirmation works correctly
+14. File timestamps are preserved
+15. Locked files are handled gracefully
 
 ---
 
-## Notes for Future Discussion
+## Implementation Priority
 
-- Should Stage 2 run automatically after Stage 1, or require a separate invocation?
-  - **Current decision**: Run automatically (answer 11a) ✓
+### Phase 1: Core Functionality
+1. Empty folder removal
+2. Folder chain flattening (< 5 items threshold)
+3. Folder name sanitization
+4. Collision handling
 
-- Should there be a maximum recursion depth to prevent issues with deeply nested structures?
+### Phase 2: Safety Features
+1. Target directory validation
+2. Processing time estimation
+3. Confirmation prompts for large directories
+4. Enhanced error handling for locked files
 
-- How should the application handle very large directory trees (millions of files)?
+### Phase 3: Configuration
+1. YAML configuration file support
+2. Configuration precedence logic
+3. Config file validation
 
-- Should folder timestamps be preserved or updated?
+### Phase 4: Edge Cases
+1. FUSE filesystem testing
+2. Network filesystem handling
+3. Timestamp preservation verification
+4. Large directory tree optimization
 
-- Should there be an option to reverse/undo Stage 2 operations?
+---
+
+## Dependencies
+
+### Required Python Libraries
+- `pyyaml`: For YAML configuration file parsing
+- `pathlib`: For path operations (standard library)
+- `shutil`: For file operations (standard library)
+- `os`: For filesystem operations (standard library)
+
+### Shared with Stage 1
+- Logging system
+- Progress reporting
+- CLI argument parsing
+- Path validation utilities
 
 ---
 
 ## Next Steps
 
-1. **Answer remaining open questions** (Questions 22, 24-28)
-2. **Finalize Stage 2 requirements** based on answers
-3. **Define detailed test scenarios**
-4. **Create implementation plan**
-5. **Begin development** of Stage 1 (Stage 2 will follow)
+1. ✅ **Requirements finalized** - All design decisions made
+2. **Update design_decisions.md** - Document new decisions
+3. **Update requirements.txt** - Add PyYAML dependency
+4. **Begin Stage 1 implementation** - Start with core filename detoxification
+5. **Implement Stage 2** - After Stage 1 is complete and tested
+6. **Integration testing** - Test Stages 1-2 together
+7. **Production deployment** - Create installation package
 
