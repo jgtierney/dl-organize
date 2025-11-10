@@ -53,6 +53,9 @@ class Stage2Processor:
         # Track all target names for collision detection
         self.used_names: Dict[str, Set[str]] = {}  # dir_path -> set of used names
         
+        # Track failed operations to prevent infinite loops
+        self.failed_folders: Set[str] = set()  # Folders that failed to process
+        
         # Operation log (for dry-run preview)
         self.operations: List[Tuple[str, str, str]] = []  # (operation, source, dest)
         
@@ -120,8 +123,9 @@ class Stage2Processor:
         """
         removed_count = 0
         pass_num = 0
+        max_passes = 100  # Safety limit to prevent infinite loops
         
-        while True:
+        while pass_num < max_passes:
             pass_num += 1
             folders = self._scan_folders()
             
@@ -132,15 +136,28 @@ class Stage2Processor:
             
             # Process bottom-up (deepest first)
             for folder_path in folders:
+                folder_key = str(folder_path)
+                
+                # Skip folders that previously failed
+                if folder_key in self.failed_folders:
+                    continue
+                
                 if self._is_empty_folder(folder_path):
-                    self._remove_folder(folder_path)
-                    pass_removed += 1
+                    success = self._remove_folder(folder_path)
+                    if success:
+                        pass_removed += 1
+                    else:
+                        # Track failed folder to prevent retrying
+                        self.failed_folders.add(folder_key)
             
             if pass_removed == 0:
                 break  # No more empty folders
             
             removed_count += pass_removed
             print(f"  Pass {pass_num}: Removed {pass_removed} empty folders")
+        
+        if pass_num >= max_passes:
+            print(f"  WARNING: Reached maximum pass limit ({max_passes})")
         
         self.stats['empty_removed'] = removed_count
         print(f"  Total empty folders removed: {removed_count}")
@@ -157,8 +174,9 @@ class Stage2Processor:
         """
         total_flattened = 0
         pass_num = 0
+        max_passes = 100  # Safety limit to prevent infinite loops
         
-        while True:
+        while pass_num < max_passes:
             pass_num += 1
             folders = self._scan_folders()
             
@@ -169,20 +187,33 @@ class Stage2Processor:
             
             # Process bottom-up (deepest first)
             for folder_path in folders:
+                folder_key = str(folder_path)
+                
                 # Skip root directory
                 if folder_path == self.input_dir:
                     continue
                 
+                # Skip folders that previously failed
+                if folder_key in self.failed_folders:
+                    continue
+                
                 # Check if folder should be flattened
                 if self._should_flatten_folder(folder_path):
-                    self._flatten_folder(folder_path)
-                    pass_flattened += 1
+                    success = self._flatten_folder(folder_path)
+                    if success:
+                        pass_flattened += 1
+                    else:
+                        # Track failed folder to prevent retrying
+                        self.failed_folders.add(folder_key)
             
             if pass_flattened == 0:
                 break  # No more flattening possible
             
             total_flattened += pass_flattened
             print(f"  Pass {pass_num}: Flattened {pass_flattened} folders")
+        
+        if pass_num >= max_passes:
+            print(f"  WARNING: Reached maximum pass limit ({max_passes})")
         
         self.stats['folders_flattened'] = total_flattened
         self.stats['flattening_passes'] = pass_num - 1
@@ -319,12 +350,15 @@ class Stage2Processor:
             self.stats['errors'] += 1
             return False
     
-    def _flatten_folder(self, folder_path: Path):
+    def _flatten_folder(self, folder_path: Path) -> bool:
         """
         Flatten a folder by moving its contents to parent.
         
         Args:
             folder_path: Folder to flatten
+            
+        Returns:
+            True if successful, False if failed
         """
         try:
             parent_dir = folder_path.parent
@@ -334,8 +368,10 @@ class Stage2Processor:
             
             if self.dry_run:
                 self.operations.append(("FLATTEN FOLDER", str(folder_path), str(parent_dir)))
+                return True
             else:
                 # Move each item to parent directory
+                move_failed = False
                 for item in contents:
                     dest_name = item.name
                     
@@ -349,33 +385,47 @@ class Stage2Processor:
                     except Exception as e:
                         print(f"  ERROR moving {item} to {dest_path}: {e}")
                         self.stats['errors'] += 1
+                        move_failed = True
+                
+                # If moves failed, don't try to remove folder
+                if move_failed:
+                    return False
                 
                 # Remove now-empty folder
                 try:
                     folder_path.rmdir()
+                    return True
                 except Exception as e:
                     print(f"  ERROR removing folder {folder_path}: {e}")
                     self.stats['errors'] += 1
+                    return False
                     
         except Exception as e:
             print(f"  ERROR flattening folder {folder_path}: {e}")
             self.stats['errors'] += 1
+            return False
     
-    def _remove_folder(self, folder_path: Path):
+    def _remove_folder(self, folder_path: Path) -> bool:
         """
         Remove an empty folder.
         
         Args:
             folder_path: Folder to remove
+            
+        Returns:
+            True if successful, False if failed
         """
         if self.dry_run:
             self.operations.append(("REMOVE EMPTY", str(folder_path), ""))
+            return True
         else:
             try:
                 folder_path.rmdir()
+                return True
             except Exception as e:
                 print(f"  ERROR removing folder {folder_path}: {e}")
                 self.stats['errors'] += 1
+                return False
     
     def _rename_folder(self, old_path: Path, new_path: Path):
         """

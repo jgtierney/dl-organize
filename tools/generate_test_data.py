@@ -196,13 +196,21 @@ class TestDataGenerator:
             (edge_cases_dir / hf).write_text("hidden file\n")
             self.file_count += 1
         
-        # Files with same name (test collision handling)
+        # Files with different names that will collide after sanitization
         collision_dir = edge_cases_dir / "collisions"
         collision_dir.mkdir(exist_ok=True)
-        for i in range(5):
-            (collision_dir / "DUPLICATE.txt").write_text(f"Version {i}\n")
-            (collision_dir / f"duplicate ({i}).txt").write_text(f"Copy {i}\n")
-            self.file_count += 2
+        
+        # These all sanitize to "duplicate.txt" causing collisions
+        collision_names = [
+            "DUPLICATE.txt",
+            "Duplicate.TXT",
+            "duplicate (1).txt",
+            "duplicate - Copy.txt",
+            "duplicate@#$.txt",
+        ]
+        for name in collision_names:
+            (collision_dir / name).write_text(f"File: {name}\n")
+            self.file_count += 1
         
         # Very deeply nested structure (test recursion)
         deep_path = edge_cases_dir
