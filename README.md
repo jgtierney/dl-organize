@@ -69,24 +69,87 @@ The File Organizer processes directories through multiple stages:
 
 ## 📦 Installation
 
-### 1. Clone the Repository
+### Option 1: AppImage (Recommended - No Python Required!)
+
+The easiest way to run File Organizer on Linux - just download and run!
+
+#### Download
+Download the latest AppImage from the releases page:
+- **file-organizer-x86_64.AppImage** (~32 MB)
+
+#### Make Executable
+```bash
+chmod +x file-organizer-x86_64.AppImage
+```
+
+#### Run
+```bash
+./file-organizer-x86_64.AppImage --help
+```
+
+#### Features
+- ✅ **No Python installation required** - Python 3.12 bundled
+- ✅ **No dependencies** - All libraries included (xxhash, pymediainfo, libmediainfo)
+- ✅ **Works everywhere** - Any modern Linux distribution (kernel 2.6.32+)
+- ✅ **Single file** - Easy to distribute and run
+- ✅ **32 MB** - Compact size with full functionality
+
+### Option 2: From Source (For Development)
+
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/jgtierney/dl-organize.git
 cd dl-organize
 ```
 
-### 2. Create Virtual Environment
+#### 2. Create Virtual Environment
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+#### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
+### Building Your Own AppImage
+
+To build the AppImage yourself:
+
+```bash
+./build-appimage.sh
+```
+
+Requirements for building:
+- Python 3.8+ with pip
+- wget (for downloading appimagetool)
+- Standard Linux build tools
+
+The build script will:
+1. Bundle Python 3.12 interpreter
+2. Install all dependencies (unidecode, pyyaml, xxhash, pymediainfo)
+3. Copy required system libraries (libmediainfo)
+4. Create self-contained AppImage (~32 MB)
+
+See `APPIMAGE_TEST_REPORT.md` for detailed build and test results.
+
 ## 🎮 Usage
+
+### Using AppImage
+
+```bash
+# Preview changes (dry-run mode)
+./file-organizer-x86_64.AppImage -if /path/to/messy/downloads
+
+# Execute changes
+./file-organizer-x86_64.AppImage -if /path/to/messy/downloads --execute
+
+# Run specific stage
+./file-organizer-x86_64.AppImage -if /path/to/input --stage 1 --execute
+```
+
+### Using From Source
 
 ### Basic Usage (Dry-Run)
 Preview changes without modifying files:

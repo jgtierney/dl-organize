@@ -1,0 +1,40 @@
+version: 1
+AppDir:
+  path: ./AppDir
+  app_info:
+    id: com.github.jgtierney.file-organizer
+    name: file-organizer
+    icon: file-organizer
+    version: 0.1.0
+    exec: usr/bin/python3
+    exec_args: "-m file_organizer.cli $@"
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: 'deb http://archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse'
+    include:
+      - libmediainfo0v5      # For pymediainfo
+      - libzen0v5            # Dependency of libmediainfo
+      - python3.12
+      - python3-pip
+  files:
+    exclude:
+      - usr/share/man
+      - usr/share/doc
+      - usr/share/icons/Adwaita
+  runtime:
+    env:
+      PYTHONHOME: '${APPDIR}/usr'
+      PYTHONPATH: '${APPDIR}/usr/lib/python3.12/site-packages'
+  test:
+    fedora:
+      image: appimagecrafters/tests-env:fedora-30
+      command: ./AppRun --version
+    debian:
+      image: appimagecrafters/tests-env:debian-stable
+      command: ./AppRun --version
+AppImage:
+  update-information: None
+  sign-key: None
+  arch: x86_64
+
