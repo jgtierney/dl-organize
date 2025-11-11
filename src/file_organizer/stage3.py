@@ -229,7 +229,9 @@ class Stage3:
         
         # Load output folder cache
         logger.info(f"Loading output folder cache...")
-        output_hashes = dict(self.cache.get_all_hashes('output'))
+        output_hashes_list = self.cache.get_all_hashes('output')
+        # Convert list of (path, hash, size) to dict of hash: path
+        output_hashes = {h: p for p, h, s in output_hashes_list}
         logger.info(f"Output folder: {len(output_hashes)} files in cache")
         
         # Scan input folder
