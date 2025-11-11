@@ -15,6 +15,7 @@ from .hash_cache import HashCache
 from .file_sampler import FileSampler
 from .duplicate_detector import DuplicateDetector
 from .duplicate_resolver import DuplicateResolver
+from .duplicate_reporter import DuplicateReporter
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,9 @@ class Stage3:
         
         # Initialize resolver
         self.resolver = DuplicateResolver()
+        
+        # Initialize reporter
+        self.reporter = DuplicateReporter()
         
         # Statistics
         self.stats = {
@@ -158,24 +162,26 @@ class Stage3:
         Returns:
             Statistics dictionary
         """
-        logger.info("=" * 80)
-        logger.info("STAGE 3A: INTERNAL DEDUPLICATION")
-        logger.info("=" * 80)
+        print("\n" + "=" * 70)
+        print("STAGE 3A: INTERNAL DEDUPLICATION")
+        print("=" * 70)
         
         # Scan input folder
-        logger.info(f"Scanning input folder: {self.input_folder}")
+        print(f"\nPhase 1: Scanning input folder...")
+        print(f"  Path: {self.input_folder}")
         files = self.scan_folder(self.input_folder)
+        print(f"  Found: {len(files):,} files")
         
         # Find duplicates
-        logger.info("Finding duplicates...")
-        duplicates = self.detector.find_all_duplicates(files, folder='input')
+        print(f"\nPhase 2: Detecting duplicates...")
+        duplicates = self.detector.find_all_duplicates(files, folder='input', show_progress=True)
         
         if not duplicates:
-            logger.info("No duplicates found!")
+            print("\n✓ No duplicates found!")
             return self.stats['stage3a']
         
         # Resolve which to keep
-        logger.info(f"Resolving {len(duplicates)} duplicate groups...")
+        print(f"\nPhase 3: Resolving duplicate groups...")
         files_to_keep, files_to_delete = self.resolver.resolve_all(duplicates)
         
         # Calculate space to reclaim
@@ -190,21 +196,47 @@ class Stage3:
         self.stats['stage3a']['files_deleted'] = len(all_files_to_delete)
         self.stats['stage3a']['space_reclaimed'] = space_to_reclaim
         
-        # Report
-        logger.info(f"\n[SUMMARY]")
-        logger.info(f"Duplicate groups found: {len(duplicates)}")
-        logger.info(f"Files to keep: {len(files_to_keep)}")
-        logger.info(f"Files to delete: {len(all_files_to_delete)}")
-        logger.info(f"Space to reclaim: {space_to_reclaim / (1024**3):.2f} GB")
+        # Generate detailed duplicate report
+        report = self.reporter.report_all_duplicates(
+            duplicates, files_to_keep, files_to_delete,
+            max_groups_shown=10, show_details=True
+        )
+        print(report)
+        
+        # Generate statistics report
+        stats_report = self.reporter.report_statistics(
+            self.detector.get_stats(),
+            sampler_enabled=True,
+            video_metadata_enabled=self.detector.use_video_metadata
+        )
+        print(stats_report)
         
         if self.dry_run:
-            logger.info("\n! DRY-RUN MODE: No files were modified")
-            logger.info("! Run with --execute to apply changes")
+            print("\n" + "=" * 70)
+            print("⚠️  DRY-RUN MODE: No files were modified")
+            print("⚠️  Run with --execute to apply changes")
+            print("=" * 70)
         else:
+            # Confirm execution
+            confirmation = self.reporter.confirm_execution(
+                len(all_files_to_delete), space_to_reclaim
+            )
+            print(confirmation)
+            
+            response = input("\nType 'yes' to confirm deletion: ").strip().lower()
+            if response != 'yes':
+                print("\n✗ Execution cancelled")
+                return self.stats['stage3a']
+            
             # Delete files
-            logger.info("\n[EXECUTION]")
+            print("\nPhase 4: Deleting duplicate files...")
             deleted = self.delete_files(all_files_to_delete)
-            logger.info(f"Deleted {deleted} files")
+            
+            # Post-execution report
+            execution_report = self.reporter.report_execution_results(
+                deleted, space_to_reclaim, errors=len(all_files_to_delete) - deleted
+            )
+            print(execution_report)
         
         return self.stats['stage3a']
     
@@ -223,38 +255,49 @@ class Stage3:
             logger.error(f"Output folder does not exist: {self.output_folder}")
             raise FileNotFoundError(f"Output folder not found: {self.output_folder}")
         
-        logger.info("=" * 80)
-        logger.info("STAGE 3B: CROSS-FOLDER DEDUPLICATION")
-        logger.info("=" * 80)
+        print("\n" + "=" * 70)
+        print("STAGE 3B: CROSS-FOLDER DEDUPLICATION")
+        print("=" * 70)
         
         # Load output folder cache
-        logger.info(f"Loading output folder cache...")
+        print(f"\nPhase 1: Loading output folder cache...")
         output_hashes_list = self.cache.get_all_hashes('output')
         # Convert list of (path, hash, size) to dict of hash: path
         output_hashes = {h: p for p, h, s in output_hashes_list}
-        logger.info(f"Output folder: {len(output_hashes)} files in cache")
+        print(f"  Output folder: {len(output_hashes):,} files in cache")
         
         # Scan input folder
-        logger.info(f"Scanning input folder: {self.input_folder}")
+        print(f"\nPhase 2: Scanning input folder...")
+        print(f"  Path: {self.input_folder}")
         input_files = self.scan_folder(self.input_folder)
+        print(f"  Found: {len(input_files):,} files")
         
         # Find files in input that exist in output
-        logger.info("Comparing input files against output cache...")
+        print(f"\nPhase 3: Comparing input files against output...")
         duplicates = {}
+        total = len(input_files)
+        update_interval = self._calculate_update_interval(total)
         
-        for input_file in input_files:
+        for i, input_file in enumerate(input_files):
+            # Progress update
+            if (i + 1) % update_interval == 0 or i == total - 1:
+                progress = (i + 1) / total * 100
+                print(f"  Comparing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
+            
             input_hash = self.detector.compute_hash(input_file, folder='input')
             if input_hash and input_hash in output_hashes:
                 # File exists in both input and output
                 output_path = output_hashes[input_hash]
                 duplicates[input_hash] = [input_file, Path(output_path)]
         
+        print(f"  Comparing: {total:,}/{total:,} (100.0%)")
+        
         if not duplicates:
-            logger.info("No cross-folder duplicates found!")
+            print("\n✓ No cross-folder duplicates found!")
             return self.stats['stage3b']
         
         # Resolve which to keep
-        logger.info(f"Resolving {len(duplicates)} cross-folder duplicates...")
+        print(f"\nPhase 4: Resolving {len(duplicates):,} duplicate groups...")
         files_to_keep, files_to_delete = self.resolver.resolve_all(duplicates)
         
         # Separate deletions by folder
@@ -271,30 +314,63 @@ class Stage3:
         # Calculate space
         input_space = self.calculate_space(input_deletions)
         output_space = self.calculate_space(output_deletions)
+        total_space = input_space + output_space
+        total_deletions = len(input_deletions) + len(output_deletions)
         
         # Update statistics
         self.stats['stage3b']['duplicates_found'] = len(duplicates)
-        self.stats['stage3b']['files_deleted'] = len(input_deletions) + len(output_deletions)
-        self.stats['stage3b']['space_reclaimed'] = input_space + output_space
+        self.stats['stage3b']['files_deleted'] = total_deletions
+        self.stats['stage3b']['space_reclaimed'] = total_space
         
-        # Report
-        logger.info(f"\n[SUMMARY]")
-        logger.info(f"Cross-folder duplicates: {len(duplicates)}")
-        logger.info(f"Files to delete from input: {len(input_deletions)} "
-                   f"({input_space / (1024**3):.2f} GB)")
-        logger.info(f"Files to delete from output: {len(output_deletions)} "
-                   f"({output_space / (1024**3):.2f} GB)")
+        # Generate detailed duplicate report
+        report = self.reporter.report_all_duplicates(
+            duplicates, files_to_keep, files_to_delete,
+            max_groups_shown=10, show_details=True
+        )
+        print(report)
+        
+        # Print folder-specific breakdown
+        print(f"\nCross-Folder Breakdown:")
+        print(f"  Delete from input:  {len(input_deletions):,} files "
+              f"({self.reporter.format_size(input_space)})")
+        print(f"  Delete from output: {len(output_deletions):,} files "
+              f"({self.reporter.format_size(output_space)})")
+        
+        # Generate statistics report
+        stats_report = self.reporter.report_statistics(
+            self.detector.get_stats(),
+            sampler_enabled=True,
+            video_metadata_enabled=self.detector.use_video_metadata
+        )
+        print(stats_report)
         
         if self.dry_run:
-            logger.info("\n! DRY-RUN MODE: No files were modified")
-            logger.info("! Run with --execute to apply changes")
+            print("\n" + "=" * 70)
+            print("⚠️  DRY-RUN MODE: No files were modified")
+            print("⚠️  Run with --execute to apply changes")
+            print("=" * 70)
         else:
+            # Confirm execution
+            confirmation = self.reporter.confirm_execution(total_deletions, total_space)
+            print(confirmation)
+            
+            response = input("\nType 'yes' to confirm deletion: ").strip().lower()
+            if response != 'yes':
+                print("\n✗ Execution cancelled")
+                return self.stats['stage3b']
+            
             # Delete files
-            logger.info("\n[EXECUTION]")
+            print("\nPhase 5: Deleting duplicate files...")
             deleted_input = self.delete_files(input_deletions)
             deleted_output = self.delete_files(output_deletions)
-            logger.info(f"Deleted {deleted_input} files from input, "
-                       f"{deleted_output} files from output")
+            total_deleted = deleted_input + deleted_output
+            total_errors = total_deletions - total_deleted
+            
+            # Post-execution report
+            execution_report = self.reporter.report_execution_results(
+                total_deleted, total_space, errors=total_errors
+            )
+            print(execution_report)
         
         return self.stats['stage3b']
     
@@ -318,22 +394,43 @@ class Stage3:
         if '3b' in phases:
             self.run_stage3b()
         
-        # Print combined summary
-        total_duplicates = (self.stats['stage3a']['duplicates_found'] + 
-                           self.stats['stage3b']['duplicates_found'])
-        total_deleted = (self.stats['stage3a']['files_deleted'] + 
-                        self.stats['stage3b']['files_deleted'])
-        total_space = (self.stats['stage3a']['space_reclaimed'] + 
-                      self.stats['stage3b']['space_reclaimed'])
-        
-        logger.info("=" * 80)
-        logger.info("STAGE 3 COMPLETE")
-        logger.info("=" * 80)
-        logger.info(f"Total duplicates found: {total_duplicates}")
-        logger.info(f"Total files deleted: {total_deleted}")
-        logger.info(f"Total space reclaimed: {total_space / (1024**3):.2f} GB")
+        # Print combined summary if both phases were run
+        if len(phases) > 1:
+            total_duplicates = (self.stats['stage3a']['duplicates_found'] + 
+                               self.stats['stage3b']['duplicates_found'])
+            total_deleted = (self.stats['stage3a']['files_deleted'] + 
+                            self.stats['stage3b']['files_deleted'])
+            total_space = (self.stats['stage3a']['space_reclaimed'] + 
+                          self.stats['stage3b']['space_reclaimed'])
+            
+            print("\n" + "=" * 70)
+            print("STAGE 3 COMPLETE")
+            print("=" * 70)
+            print(f"Total duplicates found: {total_duplicates:,}")
+            print(f"Total files deleted:    {total_deleted:,}")
+            print(f"Total space reclaimed:  {total_space / (1024**3):.2f} GB")
+            print("=" * 70)
         
         return self.stats
+    
+    def _calculate_update_interval(self, total: int) -> int:
+        """
+        Calculate adaptive progress update interval.
+        
+        Args:
+            total: Total number of items
+        
+        Returns:
+            Update interval
+        """
+        if total < 1000:
+            return 10
+        elif total < 10000:
+            return 100
+        elif total < 100000:
+            return 500
+        else:
+            return 1000
     
     def close(self):
         """Close resources."""

@@ -125,7 +125,7 @@ def test_full_pipeline_stages_1_2_3():
         # Stage 3: Video Deduplication
         print("\n--- Running Stage 3A (Internal Deduplication) ---")
         config = {'duplicate_detection': {'min_file_size': 0}}  # Process small files for testing
-        stage3 = Stage3(input_dir, output_dir, config=config, dry_run=False)
+        stage3 = Stage3(input_dir, output_dir, config=config, dry_run=True)  # Use dry_run for testing
         
         stats_3a = stage3.run_stage3a()
         
@@ -136,7 +136,7 @@ def test_full_pipeline_stages_1_2_3():
         
         # Should find duplicates
         assert stats_3a['duplicates_found'] > 0, "Should find duplicates"
-        print("✓ Duplicates detected and resolved")
+        print("✓ Duplicates detected (dry-run mode)")
         
         # Check final state
         final_files = list(input_dir.rglob('*'))
@@ -185,7 +185,7 @@ def test_stage3_cross_folder_deduplication():
         print("\nOutput folder cache populated")
         
         # Now run Stage 3B to find cross-folder duplicates
-        stage3 = Stage3(input_dir, output_dir, config=config, dry_run=False)
+        stage3 = Stage3(input_dir, output_dir, config=config, dry_run=True)  # Use dry_run for testing
         stats_3b = stage3.run_stage3b()
         
         print(f"\nStage 3B Results:")
@@ -194,7 +194,7 @@ def test_stage3_cross_folder_deduplication():
         
         # Should find cross-folder duplicates
         assert stats_3b['duplicates_found'] > 0, "Should find cross-folder duplicates"
-        print("✓ Cross-folder duplicates detected")
+        print("✓ Cross-folder duplicates detected (dry-run mode)")
         
         stage3.close()
     

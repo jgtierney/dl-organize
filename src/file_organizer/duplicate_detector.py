@@ -187,19 +187,27 @@ class DuplicateDetector:
             logger.error(f"Failed to hash file {file_path}: {e}")
             return None
     
-    def group_by_size(self, files: List[Path]) -> Dict[int, List[Path]]:
+    def group_by_size(self, files: List[Path], show_progress: bool = True) -> Dict[int, List[Path]]:
         """
         Group files by size.
         
         Args:
             files: List of file paths
+            show_progress: Show progress updates
         
         Returns:
             Dict mapping size to list of files
         """
         size_groups = defaultdict(list)
+        total = len(files)
+        update_interval = self._calculate_update_interval(total)
         
-        for file_path in files:
+        for i, file_path in enumerate(files):
+            # Progress update
+            if show_progress and ((i + 1) % update_interval == 0 or i == total - 1):
+                progress = (i + 1) / total * 100
+                print(f"  Scanning files: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
+            
             self.stats['total_files'] += 1
             
             # Check if should process
@@ -219,6 +227,9 @@ class DuplicateDetector:
                 logger.warning(f"Cannot stat file {file_path}: {e}")
                 continue
         
+        if show_progress:
+            print(f"  Scanning files: {total:,}/{total:,} (100.0%)")
+        
         logger.info(f"Grouped {self.stats['total_files']} files into "
                    f"{len(size_groups)} size groups")
         logger.info(f"Skipped: {self.stats['skipped_images']} images, "
@@ -227,18 +238,24 @@ class DuplicateDetector:
         return dict(size_groups)
     
     def find_duplicates_in_size_group(self, files: List[Path], 
-                                     folder: str = 'input') -> Dict[str, List[Path]]:
+                                     folder: str = 'input',
+                                     show_progress: bool = False,
+                                     progress_prefix: str = "") -> Dict[str, List[Path]]:
         """
         Find duplicates within a size group.
         
         Args:
             files: List of files (all same size)
             folder: 'input' or 'output'
+            show_progress: Show progress updates
+            progress_prefix: Prefix for progress message
         
         Returns:
             Dict mapping hash to list of duplicate files
         """
         hash_groups = defaultdict(list)
+        total = len(files)
+        update_interval = self._calculate_update_interval(total)
         
         # Quick video metadata pre-check (before hashing)
         if self.use_video_metadata and len(files) >= 2:
@@ -247,10 +264,18 @@ class DuplicateDetector:
             pass  # TODO: Implement pairwise duration comparison optimization
         
         # Hash all files in the group
-        for file_path in files:
+        for i, file_path in enumerate(files):
+            # Progress update
+            if show_progress and ((i + 1) % update_interval == 0 or i == total - 1):
+                progress = (i + 1) / total * 100
+                print(f"  {progress_prefix}Hashing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
+            
             file_hash = self.compute_hash(file_path, folder)
             if file_hash:
                 hash_groups[file_hash].append(file_path)
+        
+        if show_progress and total > 0:
+            print(f"  {progress_prefix}Hashing: {total:,}/{total:,} (100.0%)")
         
         # Return only groups with duplicates (2+ files)
         duplicates = {h: paths for h, paths in hash_groups.items() 
@@ -263,19 +288,21 @@ class DuplicateDetector:
         return duplicates
     
     def find_all_duplicates(self, files: List[Path], 
-                           folder: str = 'input') -> Dict[str, List[Path]]:
+                           folder: str = 'input',
+                           show_progress: bool = True) -> Dict[str, List[Path]]:
         """
         Find all duplicates in a list of files.
         
         Args:
             files: List of file paths
             folder: 'input' or 'output'
+            show_progress: Show progress updates
         
         Returns:
             Dict mapping hash to list of duplicate files
         """
         # Group by size first (optimization)
-        size_groups = self.group_by_size(files)
+        size_groups = self.group_by_size(files, show_progress=show_progress)
         
         # Find candidates (size groups with 2+ files)
         candidates = {size: paths for size, paths in size_groups.items() 
@@ -283,11 +310,25 @@ class DuplicateDetector:
         
         logger.info(f"Found {len(candidates)} size groups with potential duplicates")
         
+        # Count total files to hash
+        total_to_hash = sum(len(paths) for paths in candidates.values())
+        
+        if show_progress and total_to_hash > 0:
+            print(f"  Found {len(candidates):,} size groups with potential duplicates")
+            print(f"  Need to hash {total_to_hash:,} files...")
+        
         # Find duplicates within each size group
         all_duplicates = {}
+        files_hashed = 0
+        
         for size, paths in candidates.items():
-            duplicates = self.find_duplicates_in_size_group(paths, folder)
+            duplicates = self.find_duplicates_in_size_group(
+                paths, folder, 
+                show_progress=show_progress and total_to_hash > 100,
+                progress_prefix="" if total_to_hash <= 100 else ""
+            )
             all_duplicates.update(duplicates)
+            files_hashed += len(paths)
         
         logger.info(f"Found {len(all_duplicates)} duplicate groups total")
         logger.info(f"Cache hits: {self.stats['cache_hits']}, "
@@ -295,6 +336,25 @@ class DuplicateDetector:
                    f"Sampled: {self.stats['sampled_files']}")
         
         return all_duplicates
+    
+    def _calculate_update_interval(self, total: int) -> int:
+        """
+        Calculate adaptive progress update interval.
+        
+        Args:
+            total: Total number of items
+        
+        Returns:
+            Update interval
+        """
+        if total < 1000:
+            return 10
+        elif total < 10000:
+            return 100
+        elif total < 100000:
+            return 500
+        else:
+            return 1000
     
     def get_stats(self) -> Dict[str, int]:
         """Get detection statistics."""
