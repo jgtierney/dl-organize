@@ -9,10 +9,10 @@ A powerful Python application for systematically organizing and cleaning up larg
 
 | Stage | Name | Status | Documentation |
 |-------|------|--------|---------------|
-| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stage1_requirements.md) |
-| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stage2_requirements.md) |
-| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/stage3_requirements.md) |
-| 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
+| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stages/stage1_requirements.md) |
+| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stages/stage2_requirements.md) |
+| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/stages/stage3_requirements.md) |
+| 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project/project-phases.md) |
 
 ### 🎉 Stage 1 Achievement
 - ✅ Tested on **110,000+ files** with 100% success rate
@@ -132,7 +132,7 @@ The build script will:
 3. Copy required system libraries (libmediainfo)
 4. Create self-contained AppImage (~32 MB)
 
-See `APPIMAGE_TEST_REPORT.md` for detailed build and test results.
+See [AppImage Test Report](docs/guides/appimage_test_report.md) for detailed build and test results.
 
 ## 🎮 Usage
 
@@ -205,23 +205,23 @@ Expected performance on recommended hardware (32GB RAM, 16 cores):
 ```
 file-organizer/
 ├── src/
-│   └── file_organizer/        # Main application code (to be implemented)
+│   └── file_organizer/        # Main application code
 │       ├── __init__.py
 │       ├── __main__.py        # CLI entry point
 │       ├── stage1.py          # Filename detoxification
 │       ├── stage2.py          # Folder optimization
-│       ├── filename_cleaner.py
-│       ├── utils.py
-│       └── logger.py
-├── tests/                      # Test files (to be implemented)
-├── docs/                       # Comprehensive documentation
-│   ├── requirements.md         # Project overview
-│   ├── stage1_requirements.md  # Stage 1 detailed specs (505 lines)
-│   ├── stage2_requirements.md  # Stage 2 detailed specs (580 lines)
-│   ├── design_decisions.md     # All 29 design decisions
-│   ├── project-phases.md       # Roadmap and phase details
-│   ├── agent-sessions.md       # AI agent work log
-│   └── onboarding.md           # New contributor guide
+│       ├── stage3.py          # Duplicate detection
+│       ├── duplicate_detector.py
+│       ├── duplicate_resolver.py
+│       ├── hash_cache.py
+│       └── ...
+├── tests/                      # Comprehensive test suites
+├── docs/                       # Documentation (organized by category)
+│   ├── README.md              # Documentation index
+│   ├── stages/                # Stage requirements and implementation
+│   ├── onboarding/            # Getting started guides
+│   ├── project/               # Project management and planning
+│   └── guides/                # Setup and reference materials
 ├── config/                     # Configuration files
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
@@ -230,17 +230,17 @@ file-organizer/
 ## 📚 Documentation
 
 ### For New Contributors
-- **Start here**: [Onboarding Guide](docs/onboarding.md)
-- **Project overview**: [Requirements](docs/requirements.md)
-- **Why decisions were made**: [Design Decisions](docs/design_decisions.md)
-- **What's next**: [Project Phases](docs/project-phases.md)
+- **Start here**: [Onboarding Guide](docs/onboarding/onboarding.md)
+- **Project overview**: [Requirements](docs/project/requirements.md)
+- **Why decisions were made**: [Design Decisions](docs/project/design_decisions.md)
+- **What's next**: [Project Phases](docs/project/project-phases.md)
 
 ### For Developers
-- **Stage 1 specs**: [stage1_requirements.md](docs/stage1_requirements.md) - 505 lines
-- **Stage 2 specs**: [stage2_requirements.md](docs/stage2_requirements.md) - 580 lines
-- **Stage 3 specs**: [stage3_requirements.md](docs/stage3_requirements.md) - 861 lines
-- **Design rationale**: [design_decisions.md](docs/design_decisions.md) - 29 decisions
-- **Agent sessions**: [agent-sessions.md](docs/agent-sessions.md) - Development history
+- **Stage 1 specs**: [stage1_requirements.md](docs/stages/stage1_requirements.md) - 505 lines
+- **Stage 2 specs**: [stage2_requirements.md](docs/stages/stage2_requirements.md) - 580 lines
+- **Stage 3 specs**: [stage3_requirements.md](docs/stages/stage3_requirements.md) - 1,400+ lines
+- **Design rationale**: [design_decisions.md](docs/project/design_decisions.md) - 29 decisions
+- **Agent sessions**: [agent-sessions.md](docs/guides/agent-sessions.md) - Development history
 
 ### Total Documentation
 - **2,500+ lines** of detailed requirements
@@ -263,8 +263,8 @@ file-organizer/
 The project is currently in the **requirements phase** with complete specifications for Stages 1-2. Implementation is ready to begin.
 
 ### How to Contribute
-1. Read the [Onboarding Guide](docs/onboarding.md)
-2. Review [Stage 1 Requirements](docs/stage1_requirements.md)
+1. Read the [Onboarding Guide](docs/onboarding/onboarding.md)
+2. Review [Stage Requirements](docs/stages/)
 3. Pick a component to implement
 4. Follow Python best practices (PEP 8)
 5. Write tests for your code
@@ -289,7 +289,7 @@ The project is currently in the **requirements phase** with complete specificati
 
 ## 📋 Design Decisions
 
-Key design decisions (see [design_decisions.md](docs/design_decisions.md) for complete list):
+Key design decisions (see [design_decisions.md](docs/project/design_decisions.md) for complete list):
 
 - **Adaptive Progress Reporting**: Frequency scales with file count (prevents spam)
 - **In-Memory Processing**: Leverages 32GB RAM for performance
@@ -331,10 +331,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Read the documentation
-cat docs/onboarding.md
+cat docs/onboarding/onboarding.md
 
-# 3. Review Stage 1 requirements
-less docs/stage1_requirements.md
+# 3. Review stage requirements
+less docs/stages/stage1_requirements.md
 
 # 4. Start implementing!
 # Create your feature branch and begin coding

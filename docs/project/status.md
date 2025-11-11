@@ -72,7 +72,7 @@
 
 ### Stage 3: Video-Focused Duplicate Detection & Resolution
 - **Status**: Requirements Complete (v2.0), Ready for Implementation
-- **Document**: [stage3_requirements.md](docs/stage3_requirements.md) (1,400+ lines)
+- **Document**: [stage3_requirements.md](../stages/stage3_requirements.md) (1,400+ lines)
 - **Primary Use Case**: Video deduplication at scale (2TB, 100k+ files)
 - **Architecture**: Two-phase (3A: internal, 3B: cross-folder)
 - **Hash Algorithm**: xxHash (10-20 GB/s, speed-optimized)
@@ -104,14 +104,14 @@
 
 ### Documentation
 - `README.md` - Project overview
-- `SESSION_SUMMARY.md` - Latest session details
-- `docs/stage1_requirements.md` - Stage 1 specs (505 lines - COMPLETE)
-- `docs/stage2_requirements.md` - Stage 2 specs (580 lines - COMPLETE)
-- `docs/stage3_requirements.md` - Stage 3 specs (1,400+ lines - COMPLETE v2.0)
-- `docs/agent-sessions.md` - All session history
-- `docs/project-phases.md` - Full project roadmap
-- `docs/design_decisions.md` - All 29 design decisions
-- `docs/onboarding.md` - New contributor guide
+- `docs/guides/session_summary.md` - Latest session details
+- `docs/stages/stage1_requirements.md` - Stage 1 specs (505 lines - COMPLETE)
+- `docs/stages/stage2_requirements.md` - Stage 2 specs (580 lines - COMPLETE)
+- `docs/stages/stage3_requirements.md` - Stage 3 specs (1,400+ lines - COMPLETE v2.0)
+- `docs/guides/agent-sessions.md` - All session history
+- `docs/project/project-phases.md` - Full project roadmap
+- `docs/project/design_decisions.md` - All 29 design decisions
+- `docs/onboarding/onboarding.md` - New contributor guide
 
 ### Tools
 - `tools/generate_test_data.py` - Synthetic test data generator
@@ -199,8 +199,8 @@ python -m file_organizer -if /path/to/directory --execute
 ---
 
 **For detailed information, see:**
-- Full session history: `docs/agent-sessions.md`
-- Latest session: `SESSION_SUMMARY.md`
+- Full session history: `docs/guides/agent-sessions.md`
+- Latest session: `docs/guides/session_summary.md`
 - Project overview: `README.md`
-- Stage requirements: `docs/stage1_requirements.md`, `docs/stage2_requirements.md`, `docs/stage3_requirements.md`
+- Stage requirements: `docs/stages/stage1_requirements.md`, `docs/stages/stage2_requirements.md`, `docs/stages/stage3_requirements.md`
 

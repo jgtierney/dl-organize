@@ -98,7 +98,7 @@ Before starting any work session:
 - [ ] Merge if needed: `git merge origin/main`
 - [ ] Activate venv: `source venv/bin/activate`
 - [ ] Verify Python: `python --version` (should be 3.12.x)
-- [ ] Review status: `cat STATUS.md`
+- [ ] Review status: `cat docs/project/status.md`
 
 ---
 
@@ -179,7 +179,7 @@ pip list | grep -E "(unidecode|pyyaml)"
 # Expected: both packages listed
 
 # Check project status
-cat STATUS.md | head -20
+cat docs/project/status.md | head -20
 ```
 
 ---
@@ -195,7 +195,7 @@ Your working directory should look like this:
 ├── docs/                          # Documentation
 ├── tools/                         # Test tools
 ├── tests/                         # Test files
-├── STATUS.md                      # Quick status
+├── docs/project/status.md         # Quick status
 ├── ONBOARDING_COMPLETE.md         # Session summary
 ├── AGENT_ONBOARDING_GUIDE.md      # Agent onboarding
 ├── SESSION_START_GUIDE.md         # This file
@@ -220,7 +220,7 @@ Then provide you with:
 - Any warnings from the script
 
 Attach these files for context:
-- `STATUS.md` (must have)
+- `docs/project/status.md` (must have)
 - `ONBOARDING_COMPLETE.md` (must have)
 - Relevant stage requirements if implementing a specific stage
 
@@ -315,7 +315,7 @@ source ~/start-file-organizer.sh
 **Check status:**
 ```bash
 git status
-cat STATUS.md
+cat docs/project/status.md
 ```
 
 **Run tests:**

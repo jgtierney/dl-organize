@@ -327,7 +327,7 @@ Stage 2 implementation is **COMPLETE, TESTED, and READY** for:
 ## Next Steps
 
 1. ✅ Update documentation to reflect implementation completion
-2. ✅ Update STATUS.md and agent-sessions.md
+2. ✅ Update docs/project/status.md and docs/guides/agent-sessions.md
 3. ✅ Commit test results documentation
 4. Merge to main branch (user decision)
 5. Test on real user data (recommended)

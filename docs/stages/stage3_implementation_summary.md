@@ -440,7 +440,7 @@ pip install pymediainfo     # v7.0.1 - Video metadata
 
 **Modified (2 files)**:
 - `src/file_organizer/cli.py` (integrated Stage 3)
-- `docs/stage3_requirements.md` (rewritten v2.0)
+- `docs/stages/stage3_requirements.md` (rewritten v2.0)
 
 ### Git Commits
 

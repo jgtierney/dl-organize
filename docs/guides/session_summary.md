@@ -113,7 +113,7 @@
 
 ### Updated Documentation
 - `README.md` - Updated status to reflect Stage 1 completion
-- `docs/stage1_requirements.md` - Added implementation status section
+- `docs/stages/stage1_requirements.md` - Added implementation status section
 - `docs/agent-sessions.md` - Added full session log
 
 ### Configuration
@@ -163,7 +163,7 @@ python tools/generate_test_data.py --size large --output /tmp/test_large
 
 ## 🎯 Stage 1 Feature Checklist
 
-All Stage 1 requirements from `docs/stage1_requirements.md` are **COMPLETE**:
+All Stage 1 requirements from `docs/stages/stage1_requirements.md` are **COMPLETE**:
 
 ### Filename Sanitization Rules ✅
 - [x] Transliterate non-ASCII to ASCII (unidecode)

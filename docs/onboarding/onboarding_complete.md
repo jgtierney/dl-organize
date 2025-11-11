@@ -44,9 +44,9 @@ The File Organizer project has been thoroughly reviewed, consolidated, and plann
 - `STAGE2_TEST_RESULTS.md` (new)
 - `src/file_organizer/stage2.py` (new)
 - `src/file_organizer/config.py` (new)
-- `STATUS.md` (updated)
-- `docs/agent-sessions.md` (updated)
-- `docs/stage2_requirements.md` (updated)
+- `docs/project/status.md` (updated)
+- `docs/guides/agent-sessions.md` (updated)
+- `docs/stages/stage2_requirements.md` (updated)
 - `src/file_organizer/cli.py` (updated)
 - `tools/generate_test_data.py` (updated)
 
@@ -70,7 +70,7 @@ The File Organizer project has been thoroughly reviewed, consolidated, and plann
 ### 6. ✅ Stage 3 Requirements Creation
 **Status**: Complete
 
-**Created**: `docs/stage3_requirements.md` (861 lines)
+**Created**: `docs/stages/stage3_requirements.md` (1,400+ lines)
 
 **Contents**:
 - Complete technical specifications
@@ -105,17 +105,17 @@ The File Organizer project has been thoroughly reviewed, consolidated, and plann
 
 **Files**:
 - `README.md` - Project overview (updated)
-- `STATUS.md` - Quick status reference (updated)
-- `SESSION_SUMMARY.md` - Stage 1 implementation summary
-- `STAGE2_TEST_RESULTS.md` - Stage 2 testing results
-- `BUG_FIXES_STAGE2.md` - Critical bug documentation
-- `docs/stage1_requirements.md` - 505 lines (Stage 1 specs)
-- `docs/stage2_requirements.md` - 580 lines (Stage 2 specs)
-- `docs/stage3_requirements.md` - 861 lines (Stage 3 specs) ← **NEW**
-- `docs/design_decisions.md` - 29 design decisions
-- `docs/project-phases.md` - Full roadmap (updated)
-- `docs/onboarding.md` - Contributor guide
-- `docs/agent-sessions.md` - Development history
+- `docs/project/status.md` - Quick status reference (updated)
+- `docs/guides/session_summary.md` - Stage 1 implementation summary
+- `docs/stages/stage2_test_results.md` - Stage 2 testing results
+- `docs/stages/bug_fixes_stage2.md` - Critical bug documentation
+- `docs/stages/stage1_requirements.md` - 505 lines (Stage 1 specs)
+- `docs/stages/stage2_requirements.md` - 580 lines (Stage 2 specs)
+- `docs/stages/stage3_requirements.md` - 1,400+ lines (Stage 3 specs) ← **NEW**
+- `docs/project/design_decisions.md` - 29 design decisions
+- `docs/project/project-phases.md` - Full roadmap (updated)
+- `docs/onboarding/onboarding.md` - Contributor guide
+- `docs/guides/agent-sessions.md` - Development history
 
 ---
 
@@ -135,10 +135,10 @@ ce4f4fa - Document Stage 2 completion and testing results
 
 1. Committed `BUG_FIXES_STAGE2.md`
 2. Merged Stage 2 work to main
-3. Created `docs/stage3_requirements.md`
+3. Created `docs/stages/stage3_requirements.md`
 4. Updated `README.md` with Stage 3 info
-5. Updated `STATUS.md` with Stage 3 status
-6. Updated `docs/project-phases.md` with Stage 3 completion
+5. Updated `docs/project/status.md` with Stage 3 status
+6. Updated `docs/project/project-phases.md` with Stage 3 completion
 
 ---
 
@@ -193,7 +193,7 @@ file-organizer/
 │   └── __init__.py
 │
 ├── README.md                     # Project overview (updated)
-├── STATUS.md                     # Quick reference (updated)
+├── docs/project/status.md        # Quick reference (updated)
 ├── SESSION_SUMMARY.md            # Stage 1 summary
 ├── STAGE2_TEST_RESULTS.md        # Stage 2 testing
 ├── BUG_FIXES_STAGE2.md           # Bug documentation
@@ -232,7 +232,7 @@ file-organizer/
 
 ### Short-Term (Stage 3 Development)
 3. **Implement Stage 3: Duplicate Detection**
-   - Follow `docs/stage3_requirements.md`
+   - Follow `docs/stages/stage3_requirements.md`
    - Estimated: 5-6 weeks
    - ~1,500 lines of code
    - High test coverage (> 90%)
@@ -352,7 +352,7 @@ file-organizer/
 ## Recommendations
 
 ### For User
-1. **Review Stage 3 Requirements**: Read `docs/stage3_requirements.md`
+1. **Review Stage 3 Requirements**: Read `docs/stages/stage3_requirements.md`
 2. **Test on Real Data**: Use Stages 1-2 on actual file collections
 3. **Provide Feedback**: Report any issues or edge cases
 4. **Plan Stage 3**: Decide when to start duplicate detection implementation
@@ -425,12 +425,12 @@ All planned onboarding tasks have been completed successfully. The codebase has 
 
 ## Files Modified This Session
 
-1. `BUG_FIXES_STAGE2.md` (committed)
-2. `docs/stage3_requirements.md` (created - 861 lines)
+1. `docs/stages/bug_fixes_stage2.md` (committed)
+2. `docs/stages/stage3_requirements.md` (created - 1,400+ lines)
 3. `README.md` (updated - Stage 3 info added)
-4. `STATUS.md` (updated - Stage 3 status added)
-5. `docs/project-phases.md` (updated - Stage 3 marked complete)
-6. `ONBOARDING_COMPLETE.md` (this file)
+4. `docs/project/status.md` (updated - Stage 3 status added)
+5. `docs/project/project-phases.md` (updated - Stage 3 marked complete)
+6. `docs/onboarding/onboarding_complete.md` (this file)
 
 ## Git Commits Made
 

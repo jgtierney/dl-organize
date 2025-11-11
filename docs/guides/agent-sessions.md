@@ -42,10 +42,10 @@ Interactive Q&A session to define behavior:
 - **Safety**: System directory blocking, dry-run default
 
 ### Deliverables
-- Created `docs/requirements.md` - High-level overview
-- Created `docs/stage1_requirements.md` - Complete Stage 1 specs (500+ lines)
-- Created `docs/stage2_requirements.md` - Initial Stage 2 specs
-- Created `docs/design_decisions.md` - All design decisions with rationale
+- Created `docs/project/requirements.md` - High-level overview
+- Created `docs/stages/stage1_requirements.md` - Complete Stage 1 specs (500+ lines)
+- Created `docs/stages/stage2_requirements.md` - Initial Stage 2 specs
+- Created `docs/project/design_decisions.md` - All design decisions with rationale
 - Updated `requirements.txt` - Added unidecode dependency
 
 **Git Commits**:
@@ -77,13 +77,13 @@ User provided answers to remaining open questions:
 - **Target directory validation**: Explicit forbidden paths
 
 ### Deliverables
-- Updated `docs/stage2_requirements.md` - Removed open questions, added:
+- Updated `docs/stages/stage2_requirements.md` - Removed open questions, added:
   - Configuration file support section
   - Safety and validation section (6.1-6.3)
   - Edge cases section (7.1-7.6)
   - Complete success criteria
-- Updated `docs/design_decisions.md` - Added decisions 22-28
-- Updated `docs/requirements.md` - Stage 2 status to "Complete"
+- Updated `docs/project/design_decisions.md` - Added decisions 22-28
+- Updated `docs/project/requirements.md` - Stage 2 status to "Complete"
 - Updated `requirements.txt` - Added pyyaml dependency
 
 **Git Commits**:
@@ -128,22 +128,22 @@ User provided answers to remaining open questions:
   - Optional multi-core in Phase 4
 
 ### Deliverables
-- Updated `docs/stage1_requirements.md`:
+- Updated `docs/stages/stage1_requirements.md`:
   - Scale requirements section (1.1)
   - Initial directory scan phase (1.2)
   - Adaptive progress feedback (1.3)
   - Memory usage specifications (1.5)
   - Scale-appropriate logging (3.2)
   - Updated log format examples
-- Updated `docs/stage2_requirements.md`:
+- Updated `docs/stages/stage2_requirements.md`:
   - Large scale operations section (7.7)
   - Enhanced configuration with performance tuning
   - Updated Phase 4 scope
-- Updated `docs/design_decisions.md`:
+- Updated `docs/project/design_decisions.md`:
   - Decision 21 enhanced with adaptive logic
   - Decision 29 added with full rationale
   - Version bumped to 2.1
-- Updated `docs/requirements.md`:
+- Updated `docs/project/requirements.md`:
   - Scale & system requirements section
   - Scalability added to design philosophy
 
@@ -185,10 +185,10 @@ Stage 3+ will focus on:
 
 ### Deliverables (This Session)
 - **Created** `docs/agent-sessions.md` - This file (agent continuity)
-- **Created** `docs/project-phases.md` - Consolidated roadmap including Stage 3+
+- **Created** `docs/project/project-phases.md` - Consolidated roadmap including Stage 3+
 - **Updated** `README.md` - Comprehensive project overview
 - **Created** `docs/onboarding.md` - Navigation guide for contributors
-- **Enhanced** `docs/requirements.md` - Added documentation index
+- **Enhanced** `docs/project/requirements.md` - Added documentation index
 
 **Git Commit**: [To be created after implementation]
 
@@ -372,8 +372,8 @@ All Stage 2 features validated:
   - Validation checklist
 
 - **Updated Documentation**:
-  - `STATUS.md` - Marked Stage 2 as COMPLETE
-  - `docs/stage2_requirements.md` - Added implementation status section
+  - `docs/project/status.md` - Marked Stage 2 as COMPLETE
+  - `docs/stages/stage2_requirements.md` - Added implementation status section
   - `docs/agent-sessions.md` - This session entry
 
 ### Git Commits
@@ -383,8 +383,8 @@ All Stage 2 features validated:
 
 ### Files Modified
 - `src/file_organizer/stage2.py` - Bug fixes (processed_folders tracking)
-- `STATUS.md` - Stage 2 marked complete
-- `docs/stage2_requirements.md` - Implementation status added
+- `docs/project/status.md` - Stage 2 marked complete
+- `docs/stages/stage2_requirements.md` - Implementation status added
 - `docs/agent-sessions.md` - This session
 - `STAGE2_TEST_RESULTS.md` - Created (comprehensive test documentation)
 
@@ -439,9 +439,9 @@ All Stage 2 features validated:
 3. **After completing work**: Update this file with your session summary and commit reference
 
 ### Key Documents to Review
-- `docs/requirements.md` - Start here for project overview
-- `docs/design_decisions.md` - Understand the "why" behind choices
-- `docs/project-phases.md` - See what's done and what's next
+- `docs/project/requirements.md` - Start here for project overview
+- `docs/project/design_decisions.md` - Understand the "why" behind choices
+- `docs/project/project-phases.md` - See what's done and what's next
 - `docs/onboarding.md` - Navigation guide
 
 ### Session Format Guidelines

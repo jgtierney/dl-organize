@@ -30,7 +30,7 @@ After reviewing, let me know you're ready and I'll provide my task.
 
 ### **Tier 1: Must Attach (Quick Context)**
 
-1. **`STATUS.md`** - Single-page overview of everything
+1. **`docs/project/status.md`** - Single-page overview of everything
    - Current stage status
    - File locations
    - Quick commands
@@ -45,20 +45,20 @@ After reviewing, let me know you're ready and I'll provide my task.
 ### **Tier 2: For Specific Tasks**
 
 **If implementing Stage 1:**
-- `docs/stage1_requirements.md` (505 lines)
+- `docs/stages/stage1_requirements.md` (505 lines)
 
 **If implementing Stage 2:**
-- `docs/stage2_requirements.md` (580 lines)
+- `docs/stages/stage2_requirements.md` (580 lines)
 
 **If implementing Stage 3:**
-- `docs/stage3_requirements.md` (861 lines)
+- `docs/stages/stage3_requirements.md` (1,400+ lines)
 
 **If understanding design:**
-- `docs/design_decisions.md` (29 decisions with rationale)
+- `docs/project/design_decisions.md` (29 decisions with rationale)
 
 **If understanding the big picture:**
 - `README.md` (project overview)
-- `docs/project-phases.md` (full roadmap)
+- `docs/project/project-phases.md` (full roadmap)
 
 ### **Tier 3: Reference (mention, don't always attach)**
 - `SESSION_SUMMARY.md` - Stage 1 implementation details
@@ -73,25 +73,25 @@ After reviewing, let me know you're ready and I'll provide my task.
 
 ### For General Continuation:
 ```
-Attach: STATUS.md + ONBOARDING_COMPLETE.md
+Attach: docs/project/status.md + docs/onboarding/onboarding_complete.md
 Prompt: "Review status and continue development"
 ```
 
 ### For Implementing Stage 3:
 ```
-Attach: STATUS.md + docs/stage3_requirements.md
+Attach: docs/project/status.md + docs/stages/stage3_requirements.md
 Prompt: "Implement Stage 3 Duplicate Detection per requirements"
 ```
 
 ### For Bug Fixes/Testing:
 ```
-Attach: STATUS.md + relevant stage requirements
+Attach: docs/project/status.md + relevant stage requirements
 Prompt: "Fix [specific issue] in Stage X"
 ```
 
 ### For New Contributor:
 ```
-Attach: README.md + docs/onboarding.md + STATUS.md
+Attach: README.md + docs/onboarding/onboarding.md + docs/project/status.md
 Prompt: "Onboard me to this project"
 ```
 
@@ -99,7 +99,7 @@ Prompt: "Onboard me to this project"
 
 ## 💡 Pro Tips
 
-1. **`STATUS.md` is your friend** - Always attach this, it's the single-page "state of the world"
+1. **`docs/project/status.md` is your friend** - Always attach this, it's the single-page "state of the world"
 
 2. **`ONBOARDING_COMPLETE.md` is the context goldmine** - Has everything from this session including all decisions made
 
@@ -123,7 +123,7 @@ I'm working on the File Organizer project - a Python CLI for organizing large fi
 - System: Linux, Python 3.12, 32GB RAM
 
 **Files attached:**
-- STATUS.md (quick reference)
+- docs/project/status.md (quick reference)
 - ONBOARDING_COMPLETE.md (comprehensive context)
 
 Please review these docs, then I'll tell you what I need help with.
@@ -135,7 +135,7 @@ Please review these docs, then I'll tell you what I need help with.
 
 This approach gives the agent **90% of what they need in 2 files**, with the ability to reference specific requirements as needed:
 
-- **STATUS.md**: Quick reference, current state (< 5 min read)
+- **docs/project/status.md**: Quick reference, current state (< 5 min read)
 - **ONBOARDING_COMPLETE.md**: Deep context, decisions made, complete picture (< 10 min read)
 - **Stage-specific docs**: Only when implementing that specific stage
 
@@ -147,7 +147,7 @@ The agent can get fully onboarded in ~15 minutes and be productive immediately.
 
 | File | Lines | Purpose | Read Time |
 |------|-------|---------|-----------|
-| STATUS.md | ~190 | Quick status | 2-3 min |
+| docs/project/status.md | ~190 | Quick status | 2-3 min |
 | ONBOARDING_COMPLETE.md | ~440 | Full context | 8-10 min |
 | stage1_requirements.md | 505 | Stage 1 specs | 15-20 min |
 | stage2_requirements.md | 580 | Stage 2 specs | 15-20 min |
@@ -166,7 +166,7 @@ File Organizer project - Python CLI for organizing 100k-500k files.
 Working dir: /home/john/file-organizer
 Venv: venv/ (Python 3.12)
 
-Attached: STATUS.md + ONBOARDING_COMPLETE.md
+Attached: docs/project/status.md + docs/onboarding/onboarding_complete.md
 
 Task: [YOUR TASK HERE]
 ```
