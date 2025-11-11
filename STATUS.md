@@ -1,6 +1,6 @@
 # File Organizer - Quick Status Reference
 
-**Last Updated**: November 10, 2025
+**Last Updated**: November 11, 2025
 
 ---
 
@@ -70,15 +70,19 @@
 
 ## 📋 Stage 3 (REQUIREMENTS COMPLETE)
 
-### Stage 3: Duplicate Detection & Resolution
-- **Status**: Requirements Complete, Ready for Implementation
-- **Document**: [stage3_requirements.md](docs/stage3_requirements.md) (861 lines)
-- Hash-based duplicate identification (SHA-256, SHA-1, MD5, BLAKE2b)
-- Configurable resolution policies (keep_newest, keep_largest, keep_oldest, keep_first, manual)
-- Persistent hash caching for performance
-- Parallel hashing support
-- Memory-efficient processing (< 500MB for 500k files)
-- Size-based pre-filtering optimization
+### Stage 3: Video-Focused Duplicate Detection & Resolution
+- **Status**: Requirements Complete (v2.0), Ready for Implementation
+- **Document**: [stage3_requirements.md](docs/stage3_requirements.md) (1,400+ lines)
+- **Primary Use Case**: Video deduplication at scale (2TB, 100k+ files)
+- **Architecture**: Two-phase (3A: internal, 3B: cross-folder)
+- **Hash Algorithm**: xxHash (10-20 GB/s, speed-optimized)
+- **Resolution Policy**: Custom (keep keyword → path depth → newest)
+- **Large File Sampling**: Head + tail for files > 20MB (configurable)
+- **Video Optimizations**: Metadata + duration checking before hashing
+- **File Filtering**: Skip images, skip files < 10KB
+- **Cache**: SQLite with moved file detection (size+mtime+hash)
+- **Performance**: ~60 min initial (2TB), ~5-10 min cached runs
+- **Memory**: < 500MB for 100k files
 
 ## 📋 Stage 4 (PLANNED)
 
@@ -103,7 +107,7 @@
 - `SESSION_SUMMARY.md` - Latest session details
 - `docs/stage1_requirements.md` - Stage 1 specs (505 lines - COMPLETE)
 - `docs/stage2_requirements.md` - Stage 2 specs (580 lines - COMPLETE)
-- `docs/stage3_requirements.md` - Stage 3 specs (861 lines - COMPLETE)
+- `docs/stage3_requirements.md` - Stage 3 specs (1,400+ lines - COMPLETE v2.0)
 - `docs/agent-sessions.md` - All session history
 - `docs/project-phases.md` - Full project roadmap
 - `docs/design_decisions.md` - All 29 design decisions
@@ -157,13 +161,17 @@ python -m file_organizer -if /path/to/directory --execute
 
 ## 🎯 Next Session Agenda
 
-1. **Review Stage 2 requirements** (`docs/stage2_requirements.md`)
-2. **Implement folder structure analyzer**
-3. **Build empty folder detection**
-4. **Implement flattening logic**
-5. **Add configuration file support**
-6. **Test on synthetic data**
-7. **Performance validation**
+1. **Deploy Stages 1-2 to production** (ready for real-world use)
+2. **Stage 3 Implementation** (video deduplication system)
+   - Install dependencies (xxhash, pymediainfo/ffprobe)
+   - Implement xxHash integration
+   - Build SQLite cache system
+   - Implement large file sampling
+   - Add video metadata extraction
+   - Create custom resolution policy (keep→depth→newest)
+   - Build two-phase architecture (3A + 3B)
+3. **Stage 3 Testing** (synthetic data with duplicates)
+4. **Performance validation** (2TB, 100k file target)
 
 ---
 
@@ -181,11 +189,12 @@ python -m file_organizer -if /path/to/directory --execute
 
 ## 💡 Quick Notes
 
-- ✅ Stage 1 is ready for real-world use
+- ✅ Stages 1-2 are ready for real-world use
 - ✅ All code committed and pushed to GitHub
-- ✅ Comprehensive documentation in place
+- ✅ Comprehensive documentation in place (2,500+ lines)
 - ✅ Test suite working perfectly
-- ⏳ Stage 2 specifications complete, ready for implementation
+- ✅ Stage 3 requirements complete (v2.0 - video-focused deduplication)
+- ⏳ Stage 3 ready for implementation (7-8 week estimate)
 
 ---
 
@@ -193,5 +202,5 @@ python -m file_organizer -if /path/to/directory --execute
 - Full session history: `docs/agent-sessions.md`
 - Latest session: `SESSION_SUMMARY.md`
 - Project overview: `README.md`
-- Stage requirements: `docs/stage1_requirements.md`, `docs/stage2_requirements.md`
+- Stage requirements: `docs/stage1_requirements.md`, `docs/stage2_requirements.md`, `docs/stage3_requirements.md`
 
