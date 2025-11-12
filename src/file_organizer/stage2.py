@@ -466,14 +466,22 @@ class Stage2Processor:
     def _resolve_collision(self, parent_dir: Path, name: str) -> str:
         """
         Check for naming collision and resolve if necessary.
-        
+
+        Uses both cache and filesystem checks to prevent race conditions.
+
         Args:
             parent_dir: Parent directory
             name: Proposed name
-            
+
         Returns:
             Unique name (may be modified with date stamp + counter)
+
+        Raises:
+            RuntimeError: If unable to resolve collision after max attempts
         """
+        # Maximum attempts to resolve a collision
+        MAX_COLLISION_ATTEMPTS = 10000
+
         # Track used names per directory
         dir_key = str(parent_dir)
         if dir_key not in self.used_names:
@@ -482,21 +490,51 @@ class Stage2Processor:
                 self.used_names[dir_key] = {
                     item.name.lower() for item in parent_dir.iterdir()
                 }
-            except Exception:
+            except (PermissionError, FileNotFoundError, OSError) as e:
+                print(f"  WARNING: Cannot read directory {parent_dir}: {e}")
                 self.used_names[dir_key] = set()
-        
-        # Check for collision (case-insensitive)
-        if name.lower() in self.used_names[dir_key]:
+                self.stats['errors'] += 1
+
+        # Helper function to check if name exists (cache + filesystem)
+        def name_exists(check_name: str) -> bool:
+            """Check both cache and filesystem for existence."""
+            # Check cache first (fast)
+            if check_name.lower() in self.used_names[dir_key]:
+                return True
+
+            # Check filesystem (handles external changes)
+            target_path = parent_dir / check_name
+            if target_path.exists():
+                # Update cache with newly discovered file
+                self.used_names[dir_key].add(check_name.lower())
+                return True
+
+            return False
+
+        # Check for collision (case-insensitive, with filesystem verification)
+        if name_exists(name):
             # Generate unique name
             original_name = name
             name = self.cleaner.generate_collision_name(name, parent_dir)
             self.stats['collisions_resolved'] += 1
-            
-            # Keep trying if still collides
-            while name.lower() in self.used_names[dir_key]:
+
+            # Keep trying if still collides (with safety limit)
+            attempts = 0
+            while name_exists(name):
+                attempts += 1
+                if attempts >= MAX_COLLISION_ATTEMPTS:
+                    error_msg = (
+                        f"Unable to resolve collision for '{original_name}' "
+                        f"in {parent_dir} after {MAX_COLLISION_ATTEMPTS} attempts. "
+                        f"Last attempted name: '{name}'"
+                    )
+                    print(f"\n  ERROR: {error_msg}")
+                    self.stats['errors'] += 1
+                    raise RuntimeError(error_msg)
+
                 name = self.cleaner.generate_collision_name(original_name, parent_dir)
-        
+
         # Mark this name as used
         self.used_names[dir_key].add(name.lower())
-        
+
         return name

@@ -165,20 +165,22 @@ class FilenameCleaner:
     def generate_collision_name(self, base_name: str, directory: Path) -> str:
         """
         Generate a unique filename for collision resolution.
-        
+
         Uses format: base_YYYYMMDD_N.ext
         where N is a counter starting from 1.
-        
+
+        Ensures the generated name doesn't exceed MAX_FILENAME_LENGTH.
+
         Args:
             base_name: The sanitized base name that has a collision
             directory: Directory where the file will be placed
-            
+
         Returns:
-            Unique filename with date stamp and counter
+            Unique filename with date stamp and counter, truncated if needed
         """
         # Get current date in YYYYMMDD format
         date_stamp = datetime.now().strftime("%Y%m%d")
-        
+
         # Split extension if present
         if '.' in base_name:
             base, ext = base_name.rsplit('.', 1)
@@ -186,21 +188,53 @@ class FilenameCleaner:
         else:
             base, ext = base_name, ""
             has_ext = False
-        
+
         # Track collision counter for this base name in this directory
         collision_key = str(directory / base_name)
         if collision_key not in self.collision_counters:
             self.collision_counters[collision_key] = 0
-        
+
         # Increment counter and generate new name
         counter = self.collision_counters[collision_key] + 1
         self.collision_counters[collision_key] = counter
-        
+
         # Construct collision name
         if has_ext:
-            return f"{base}_{date_stamp}_{counter}.{ext}"
+            new_name = f"{base}_{date_stamp}_{counter}.{ext}"
         else:
-            return f"{base}_{date_stamp}_{counter}"
+            new_name = f"{base}_{date_stamp}_{counter}"
+
+        # IMPORTANT: Truncate if the collision name is too long
+        # The collision suffix adds approximately 14-16 characters:
+        # - "_" (1)
+        # - "YYYYMMDD" (8)
+        # - "_" (1)
+        # - counter (1-5 digits, typically 1-2)
+        # We need to ensure the final name fits within MAX_FILENAME_LENGTH
+
+        if len(new_name) > self.MAX_FILENAME_LENGTH:
+            # Calculate how much space the suffix takes
+            suffix = f"_{date_stamp}_{counter}"
+            if has_ext:
+                suffix += f".{ext}"
+            suffix_length = len(suffix)
+
+            # Calculate maximum base length
+            max_base_length = self.MAX_FILENAME_LENGTH - suffix_length
+
+            if max_base_length < 1:
+                # Suffix itself is too long (extremely rare)
+                # Just truncate the whole thing
+                new_name = new_name[:self.MAX_FILENAME_LENGTH]
+            else:
+                # Truncate the base, preserve suffix
+                truncated_base = base[:max_base_length]
+                if has_ext:
+                    new_name = f"{truncated_base}_{date_stamp}_{counter}.{ext}"
+                else:
+                    new_name = f"{truncated_base}_{date_stamp}_{counter}"
+
+        return new_name
     
     def is_hidden_file(self, filename: str) -> bool:
         """

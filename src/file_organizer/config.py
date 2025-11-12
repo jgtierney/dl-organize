@@ -88,29 +88,153 @@ class Config:
         return None
     
     def get_flatten_threshold(self, cli_override: Optional[int] = None) -> int:
-        """Get folder flattening threshold (default: 5 items)."""
+        """
+        Get folder flattening threshold (default: 5 items).
+
+        Returns:
+            Valid threshold between 0 and 1000 (inclusive)
+        """
         value = self.get('flatten_threshold', cli_override)
-        return int(value) if value is not None else 5
+
+        # Handle None
+        if value is None:
+            return 5
+
+        # Validate and convert
+        try:
+            threshold = int(value)
+
+            # Validate range
+            if threshold < 0:
+                print(f"WARNING: flatten_threshold must be >= 0, got {threshold}. Using default (5).")
+                return 5
+
+            if threshold > 1000:
+                print(f"WARNING: flatten_threshold very high ({threshold}), capping at 1000.")
+                return 1000
+
+            return threshold
+
+        except (ValueError, TypeError) as e:
+            print(f"WARNING: Invalid flatten_threshold value '{value}': {e}. Using default (5).")
+            return 5
     
     def get_default_mode(self, cli_override: Optional[str] = None) -> str:
-        """Get default execution mode (dry-run or execute)."""
+        """
+        Get default execution mode (dry-run or execute).
+
+        Returns:
+            Either 'dry-run' or 'execute'
+        """
         value = self.get('default_mode', cli_override)
-        return str(value) if value else 'dry-run'
+
+        if value is None:
+            return 'dry-run'
+
+        # Validate value
+        mode = str(value).lower().strip()
+
+        if mode in ('dry-run', 'dryrun', 'dry_run', 'preview'):
+            return 'dry-run'
+        elif mode in ('execute', 'exec', 'run', 'live'):
+            return 'execute'
+        else:
+            print(f"WARNING: Invalid default_mode '{value}', must be 'dry-run' or 'execute'. Using 'dry-run'.")
+            return 'dry-run'
     
     def should_preserve_timestamps(self, cli_override: Optional[bool] = None) -> bool:
-        """Check if timestamps should be preserved."""
+        """
+        Check if timestamps should be preserved.
+
+        Returns:
+            Boolean value (default: True)
+        """
         value = self.get('preserve_timestamps', cli_override)
-        return bool(value) if value is not None else True
+
+        if value is None:
+            return True
+
+        # Handle various boolean representations
+        if isinstance(value, bool):
+            return value
+
+        # Handle string representations
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', 'yes', '1', 'on', 'enabled'):
+                return True
+            elif value_lower in ('false', 'no', '0', 'off', 'disabled'):
+                return False
+            else:
+                print(f"WARNING: Invalid preserve_timestamps value '{value}'. Using default (True).")
+                return True
+
+        # Handle numeric (0 = False, anything else = True)
+        try:
+            return bool(int(value))
+        except (ValueError, TypeError):
+            print(f"WARNING: Invalid preserve_timestamps value '{value}'. Using default (True).")
+            return True
     
     def get_max_errors_logged(self, cli_override: Optional[int] = None) -> int:
-        """Get maximum number of detailed errors to log."""
+        """
+        Get maximum number of detailed errors to log.
+
+        Returns:
+            Valid count between 0 and 100,000 (inclusive)
+        """
         value = self.get('max_errors_logged', cli_override)
-        return int(value) if value is not None else 1000
+
+        if value is None:
+            return 1000
+
+        try:
+            max_errors = int(value)
+
+            # Validate range
+            if max_errors < 0:
+                print(f"WARNING: max_errors_logged must be >= 0, got {max_errors}. Using 0 (no logging).")
+                return 0
+
+            if max_errors > 100000:
+                print(f"WARNING: max_errors_logged very high ({max_errors}), capping at 100,000.")
+                return 100000
+
+            return max_errors
+
+        except (ValueError, TypeError) as e:
+            print(f"WARNING: Invalid max_errors_logged value '{value}': {e}. Using default (1000).")
+            return 1000
     
     def get_scan_progress_interval(self, cli_override: Optional[int] = None) -> int:
-        """Get number of files between scan progress updates."""
+        """
+        Get number of files between scan progress updates.
+
+        Returns:
+            Valid interval between 1 and 1,000,000 (inclusive)
+        """
         value = self.get('scan_progress_interval', cli_override)
-        return int(value) if value is not None else 10000
+
+        if value is None:
+            return 10000
+
+        try:
+            interval = int(value)
+
+            # Validate range
+            if interval < 1:
+                print(f"WARNING: scan_progress_interval must be >= 1, got {interval}. Using 1.")
+                return 1
+
+            if interval > 1000000:
+                print(f"WARNING: scan_progress_interval very high ({interval}), capping at 1,000,000.")
+                return 1000000
+
+            return interval
+
+        except (ValueError, TypeError) as e:
+            print(f"WARNING: Invalid scan_progress_interval value '{value}': {e}. Using default (10,000).")
+            return 10000
     
     def has_config_file(self) -> bool:
         """Check if a configuration file exists and was loaded."""
