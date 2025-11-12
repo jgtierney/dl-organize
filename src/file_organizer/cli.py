@@ -25,7 +25,7 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="file-organizer",
         description="Systematically organize and clean up large collections of files",
-        epilog="For detailed documentation, see: docs/requirements.md"
+        epilog="For detailed documentation, see: docs/requirements/requirements.md"
     )
     
     parser.add_argument(
@@ -83,6 +83,50 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     return parser.parse_args()
+
+
+def confirm_proceed_to_next_stage(
+    current_stage: int,
+    next_stage: int,
+    dry_run: bool = False
+) -> bool:
+    """
+    Prompt user to confirm proceeding to next stage.
+    
+    Args:
+        current_stage: Number of stage that just completed
+        next_stage: Number of next stage to run
+        dry_run: Whether in dry-run mode
+        
+    Returns:
+        True if user wants to proceed, False to exit
+    """
+    stage_names = {
+        1: "Filename Detoxification",
+        2: "Folder Structure Optimization",
+        3: "Duplicate Detection & Resolution",
+        4: "File Relocation"
+    }
+    
+    current_name = stage_names.get(current_stage, f"Stage {current_stage}")
+    next_name = stage_names.get(next_stage, f"Stage {next_stage}")
+    
+    print("\n" + "=" * 70)
+    print(f"Stage {current_stage} completed successfully.")
+    print()
+    
+    mode_indicator = " (DRY-RUN)" if dry_run else " (EXECUTE MODE)"
+    print(f"Proceed to Stage {next_stage}: {next_name}{mode_indicator}? (yes/no): ", end="")
+    
+    try:
+        response = input().strip().lower()
+        if response in ('yes', 'y'):
+            return True
+        else:
+            return False
+    except KeyboardInterrupt:
+        print("\n\nOperation cancelled.")
+        return False
 
 
 def validate_arguments(args: argparse.Namespace) -> Optional[str]:
@@ -178,6 +222,14 @@ def main() -> int:
                 dry_run=not args.execute
             )
             stage1.process()
+            
+            # Confirm before Stage 2 if it will run
+            if run_stage2:
+                if not confirm_proceed_to_next_stage(1, 2, dry_run=not args.execute):
+                    print("\n" + "=" * 70)
+                    print("Stage 1 completed. Exiting.")
+                    print("=" * 70)
+                    return 0
         
         # Run Stage 2
         if run_stage2:

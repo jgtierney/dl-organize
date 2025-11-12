@@ -269,12 +269,16 @@ file-organizer -if /path/to/input -of /path/to/output --execute
 
 **Process**:
 1. **Scan**: Count files and folders, estimate time
-2. **Confirmation**: Display stats, ask user to confirm (if > 1 min)
+2. **Initial Confirmation**: Display stats, ask user to confirm (if execute mode)
 3. **Stage 1**: Filename detoxification (in-place in input folder)
-4. **Stage 2**: Folder optimization (in-place in input folder)
-5. **Stage 3**: Duplicate detection and resolution (in input folder)
-6. **Stage 4**: File relocation (input → output)
-7. **Report**: Summary of all operations
+4. **Stage 1 Summary**: Display results
+5. **Confirmation**: Prompt user to proceed to Stage 2 (yes/no)
+6. **Stage 2**: Folder optimization (in-place in input folder, if confirmed)
+7. **Stage 2 Summary**: Display results (if Stage 2 ran)
+8. **Confirmation**: Prompt user to proceed to Stage 3 (yes/no, when implemented)
+9. **Stage 3**: Duplicate detection and resolution (in input folder, if confirmed)
+10. **Stage 4**: File relocation (input → output, if confirmed)
+11. **Report**: Summary of all operations
 
 **Estimated Time for 500k files**:
 - Stage 1: 25-50 minutes

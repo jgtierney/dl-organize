@@ -10,9 +10,9 @@ Welcome to the File Organizer project! This guide will help you quickly understa
 The File Organizer systematically cleans and organizes large collections of files (100k-500k files) through multiple automated stages.
 
 ### 2. Read These First
-1. **[README.md](../README.md)** - Project overview and current status (5 min read)
-2. **[requirements.md](./requirements.md)** - High-level requirements (10 min read)
-3. **[design_decisions.md](./design_decisions.md)** - Why we made specific choices (20 min read)
+1. **[README.md](../../README.md)** - Project overview and current status (5 min read)
+2. **[requirements.md](../requirements/requirements.md)** - High-level requirements (10 min read)
+3. **[design_decisions.md](../design/design_decisions.md)** - Why we made specific choices (20 min read)
 
 ### 3. Current Status
 - ✅ **Requirements Phase**: Complete for Stages 1-2
@@ -26,28 +26,28 @@ The File Organizer systematically cleans and organizes large collections of file
 ### Core Documents (Read in This Order)
 
 #### Level 1: Overview (Start Here)
-- **[README.md](../README.md)** - What the project does, quick start
-- **[requirements.md](./requirements.md)** - High-level requirements, design philosophy
-- **[project-phases.md](./project-phases.md)** - Roadmap, all stages explained
+- **[README.md](../../README.md)** - What the project does, quick start
+- **[requirements.md](../requirements/requirements.md)** - High-level requirements, design philosophy
+- **[project-phases.md](../project-phases.md)** - Roadmap, all stages explained
 
 #### Level 2: Detailed Specifications
-- **[stage1_requirements.md](./stage1_requirements.md)** (505 lines)
+- **[stage1_requirements.md](../requirements/stage1_requirements.md)** (505 lines)
   - Complete specifications for filename detoxification
   - Performance targets, examples, edge cases
   - **Read this if**: Implementing Stage 1
 
-- **[stage2_requirements.md](./stage2_requirements.md)** (580 lines)
+- **[stage2_requirements.md](../requirements/stage2_requirements.md)** (580 lines)
   - Complete specifications for folder optimization
   - Configuration file format, validation logic
   - **Read this if**: Implementing Stage 2
 
 #### Level 3: Context & History
-- **[design_decisions.md](./design_decisions.md)** (29 decisions)
+- **[design_decisions.md](../design/design_decisions.md)** (29 decisions)
   - Every design choice with rationale
   - Alternatives considered and why they were rejected
   - **Read this if**: Understanding the "why" behind requirements
 
-- **[agent-sessions.md](./agent-sessions.md)** (4 sessions)
+- **[agent-sessions.md](../history/agent-sessions.md)** (4 sessions)
   - Development history and context
   - Questions asked, answers received
   - **Read this if**: Continuing work from previous sessions
@@ -59,31 +59,31 @@ The File Organizer systematically cleans and organizes large collections of file
 ### "I want to..."
 
 #### ...understand what this project does
-→ Read [README.md](../README.md) (5 minutes)
+→ Read [README.md](../../README.md) (5 minutes)
 
 #### ...implement Stage 1 (filename cleaning)
-→ Read [stage1_requirements.md](./stage1_requirements.md) thoroughly
+→ Read [stage1_requirements.md](../requirements/stage1_requirements.md) thoroughly
 
 #### ...implement Stage 2 (folder optimization)
-→ Read [stage2_requirements.md](./stage2_requirements.md) thoroughly
+→ Read [stage2_requirements.md](../requirements/stage2_requirements.md) thoroughly
 
 #### ...understand why a decision was made
-→ Search [design_decisions.md](./design_decisions.md) for the topic
+→ Search [design_decisions.md](../design/design_decisions.md) for the topic
 
 #### ...see what's planned for future stages
-→ Read [project-phases.md](./project-phases.md) Stage 3+ sections
+→ Read [project-phases.md](../project-phases.md) Stage 3+ sections
 
 #### ...understand system requirements
-→ See "Scale & System Requirements" in [requirements.md](./requirements.md)
+→ See "Scale & System Requirements" in [requirements.md](../requirements/requirements.md)
 
 #### ...know what work has been done
-→ Read [agent-sessions.md](./agent-sessions.md) for session history
+→ Read [agent-sessions.md](../history/agent-sessions.md) for session history
 
 #### ...write tests
 → Review "Test Requirements" sections in stage1/stage2 docs
 
 #### ...contribute code
-→ Read "Contributing" section in [README.md](../README.md)
+→ Read "Contributing" section in [README.md](../../README.md)
 
 ---
 
@@ -107,7 +107,7 @@ The application processes files through sequential stages:
 - **Comprehensive logging**: All operations tracked
 
 ### Design Decision Numbers
-Throughout the docs, you'll see "Decision 21" or "Decision 29" references. These correspond to entries in [design_decisions.md](./design_decisions.md) and provide rationale for specific choices.
+Throughout the docs, you'll see "Decision 21" or "Decision 29" references. These correspond to entries in [design_decisions.md](../design/design_decisions.md) and provide rationale for specific choices.
 
 ---
 
@@ -143,13 +143,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Read documentation
-cat docs/onboarding.md  # You're here!
+cat docs/guides/onboarding.md  # You're here!
 ```
 
 ### Your First Contribution
 
 #### Option A: Implement Stage 1 Component
-1. Read [stage1_requirements.md](./stage1_requirements.md) completely
+1. Read [stage1_requirements.md](../requirements/stage1_requirements.md) completely
 2. Pick a component:
    - Filename sanitization (`filename_cleaner.py`)
    - Collision detection
@@ -178,9 +178,9 @@ cat docs/onboarding.md  # You're here!
 ## 🤖 For AI Agents Continuing Work
 
 ### Before Starting Work
-1. Read **[agent-sessions.md](./agent-sessions.md)** - Most recent session first
-2. Review **[design_decisions.md](./design_decisions.md)** - Summary table
-3. Check **[project-phases.md](./project-phases.md)** - Current phase status
+1. Read **[agent-sessions.md](../history/agent-sessions.md)** - Most recent session first
+2. Review **[design_decisions.md](../design/design_decisions.md)** - Summary table
+3. Check **[project-phases.md](../project-phases.md)** - Current phase status
 
 ### During Work
 - Reference design decision numbers when applicable
@@ -188,14 +188,14 @@ cat docs/onboarding.md  # You're here!
 - Track files created/modified
 
 ### After Completing Work
-1. Update **[agent-sessions.md](./agent-sessions.md)** with your session
-2. If new decisions made: Update **[design_decisions.md](./design_decisions.md)**
-3. If status changed: Update **[project-phases.md](./project-phases.md)**
+1. Update **[agent-sessions.md](../history/agent-sessions.md)** with your session
+2. If new decisions made: Update **[design_decisions.md](../design/design_decisions.md)**
+3. If status changed: Update **[project-phases.md](../project-phases.md)**
 4. Commit changes with descriptive message
 5. Reference commit hash in agent-sessions.md
 
 ### Session Documentation Template
-See the format in [agent-sessions.md](./agent-sessions.md) under any session heading.
+See the format in [agent-sessions.md](../history/agent-sessions.md) under any session heading.
 
 ---
 
@@ -204,9 +204,9 @@ See the format in [agent-sessions.md](./agent-sessions.md) under any session hea
 ### Software Developer (Implementing Features)
 **Priority path**:
 1. README.md → Understand project
-2. requirements.md → High-level context
-3. stage1_requirements.md OR stage2_requirements.md → Detailed specs for your stage
-4. design_decisions.md → Understand rationale
+2. requirements/requirements.md → High-level context
+3. requirements/stage1_requirements.md OR requirements/stage2_requirements.md → Detailed specs for your stage
+4. design/design_decisions.md → Understand rationale
 5. Start coding with tests
 
 **Time investment**: 1-2 hours of reading before coding
@@ -214,7 +214,7 @@ See the format in [agent-sessions.md](./agent-sessions.md) under any session hea
 ### Technical Writer (Documentation)
 **Priority path**:
 1. All documentation (skim for structure)
-2. design_decisions.md → Understand technical depth
+2. design/design_decisions.md → Understand technical depth
 3. Identify gaps or unclear sections
 4. Propose improvements
 
@@ -222,15 +222,15 @@ See the format in [agent-sessions.md](./agent-sessions.md) under any session hea
 **Priority path**:
 1. README.md → Project overview
 2. project-phases.md → Roadmap and status
-3. requirements.md → High-level requirements
-4. Optional: design_decisions.md → Technical decisions
+3. requirements/requirements.md → High-level requirements
+4. Optional: design/design_decisions.md → Technical decisions
 
 **Time investment**: 30-60 minutes
 
 ### Quality Assurance / Tester
 **Priority path**:
 1. README.md → Understand what it does
-2. stage1_requirements.md + stage2_requirements.md → What to test
+2. requirements/stage1_requirements.md + requirements/stage2_requirements.md → What to test
 3. Focus on "Test Requirements" sections
 4. Focus on "Success Criteria" sections
 5. Create test plans
@@ -239,7 +239,7 @@ See the format in [agent-sessions.md](./agent-sessions.md) under any session hea
 
 ## 💡 Understanding Design Decisions
 
-Design decisions are numbered for easy reference. When you see "See Decision 21" in documentation, you can quickly find it in [design_decisions.md](./design_decisions.md).
+Design decisions are numbered for easy reference. When you see "See Decision 21" in documentation, you can quickly find it in [design_decisions.md](../design/design_decisions.md).
 
 ### Key Decisions to Understand
 - **Decision 21**: Adaptive progress reporting (prevents console spam)
@@ -247,7 +247,7 @@ Design decisions are numbered for easy reference. When you see "See Decision 21"
 - **Decision 26**: Target directory validation (safety)
 - **Decision 6**: Hidden file deletion (cleanup philosophy)
 
-See the [Decision Summary Table](./design_decisions.md#decision-summary-table) for a complete overview.
+See the [Decision Summary Table](../design/design_decisions.md#decision-summary-table) for a complete overview.
 
 ---
 
@@ -261,25 +261,25 @@ See the [Decision Summary Table](./design_decisions.md#decision-summary-table) f
 3. Check cross-references to related sections
 
 #### Understand why something works a certain way
-1. Search [design_decisions.md](./design_decisions.md) for the feature
+1. Search [design_decisions.md](../design/design_decisions.md) for the feature
 2. Read the "Reasoning" section for that decision
 3. Check "Considered Options" to see alternatives
 
 #### See what's been implemented
-1. Check [project-phases.md](./project-phases.md) status table
+1. Check [project-phases.md](../project-phases.md) status table
 2. Review git commit history
-3. Read [agent-sessions.md](./agent-sessions.md) for latest work
+3. Read [agent-sessions.md](../history/agent-sessions.md) for latest work
 
 ---
 
 ## 🎓 Learning Path
 
 ### Week 1: Understanding
-- Day 1: README.md, requirements.md
-- Day 2: design_decisions.md (skim all, read key ones)
-- Day 3: stage1_requirements.md (if working on Stage 1)
-- Day 4: stage2_requirements.md (if working on Stage 2)
-- Day 5: project-phases.md, agent-sessions.md (context)
+- Day 1: README.md, requirements/requirements.md
+- Day 2: design/design_decisions.md (skim all, read key ones)
+- Day 3: requirements/stage1_requirements.md (if working on Stage 1)
+- Day 4: requirements/stage2_requirements.md (if working on Stage 2)
+- Day 5: project-phases.md, history/agent-sessions.md (context)
 
 ### Week 2: Contributing
 - Day 1-2: Set up environment, write first tests
@@ -309,10 +309,10 @@ If documentation is:
 
 Before starting work, have you:
 - [ ] Read README.md
-- [ ] Read requirements.md  
-- [ ] Read relevant stage requirements (stage1 or stage2)
+- [ ] Read requirements/requirements.md  
+- [ ] Read relevant stage requirements (requirements/stage1 or requirements/stage2)
 - [ ] Reviewed applicable design decisions
-- [ ] Checked agent-sessions.md for context
+- [ ] Checked history/agent-sessions.md for context
 - [ ] Understood the current project phase
 
 ---
@@ -320,11 +320,11 @@ Before starting work, have you:
 ## 📝 Documentation Conventions
 
 ### File Naming
-- `requirements.md` - Overview and high-level
-- `stageN_requirements.md` - Detailed stage-specific
-- `design_decisions.md` - Rationale and alternatives
+- `requirements/requirements.md` - Overview and high-level
+- `requirements/stageN_requirements.md` - Detailed stage-specific
+- `design/design_decisions.md` - Rationale and alternatives
 - `project-phases.md` - Roadmap and status
-- `agent-sessions.md` - Development history
+- `history/agent-sessions.md` - Development history
 
 ### Cross-References
 - `[Link Text](./filename.md)` - Relative links
@@ -353,13 +353,13 @@ You understand the project when you can:
 
 ## 🔗 Quick Links
 
-- [README](../README.md) - Project overview
-- [Requirements](./requirements.md) - High-level requirements
-- [Stage 1 Specs](./stage1_requirements.md) - Filename detoxification
-- [Stage 2 Specs](./stage2_requirements.md) - Folder optimization
-- [Design Decisions](./design_decisions.md) - All 29 decisions
-- [Project Phases](./project-phases.md) - Roadmap
-- [Agent Sessions](./agent-sessions.md) - Development history
+- [README](../../README.md) - Project overview
+- [Requirements](../requirements/requirements.md) - High-level requirements
+- [Stage 1 Specs](../requirements/stage1_requirements.md) - Filename detoxification
+- [Stage 2 Specs](../requirements/stage2_requirements.md) - Folder optimization
+- [Design Decisions](../design/design_decisions.md) - All 29 decisions
+- [Project Phases](../project-phases.md) - Roadmap
+- [Agent Sessions](../history/agent-sessions.md) - Development history
 
 ---
 

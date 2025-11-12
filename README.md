@@ -9,9 +9,9 @@ A powerful Python application for systematically organizing and cleaning up larg
 
 | Stage | Name | Status | Documentation |
 |-------|------|--------|---------------|
-| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stage1_requirements.md) |
-| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stage2_requirements.md) |
-| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/stage3_requirements.md) |
+| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/requirements/stage1_requirements.md) |
+| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/requirements/stage2_requirements.md) |
+| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/requirements/stage3_requirements.md) |
 | 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
 
 ### 🎉 Stage 1 Achievement
@@ -152,13 +152,27 @@ file-organizer/
 │       └── logger.py
 ├── tests/                      # Test files (to be implemented)
 ├── docs/                       # Comprehensive documentation
-│   ├── requirements.md         # Project overview
-│   ├── stage1_requirements.md  # Stage 1 detailed specs (505 lines)
-│   ├── stage2_requirements.md  # Stage 2 detailed specs (580 lines)
-│   ├── design_decisions.md     # All 29 design decisions
-│   ├── project-phases.md       # Roadmap and phase details
-│   ├── agent-sessions.md       # AI agent work log
-│   └── onboarding.md           # New contributor guide
+│   ├── guides/                 # How-to guides and workflows
+│   │   ├── setup.md           # Development setup
+│   │   ├── onboarding.md       # New contributor guide
+│   │   ├── agent-onboarding.md # Agent workflow guide
+│   │   └── session-start.md   # Session workflow guide
+│   ├── reference/              # Quick reference documents
+│   │   └── status.md          # Quick status reference
+│   ├── history/                # Historical records
+│   │   ├── agent-sessions.md  # AI agent work log
+│   │   ├── session-summary.md # Stage 1 summary
+│   │   ├── onboarding-complete.md # Onboarding summary
+│   │   ├── stage2-test-results.md # Test results
+│   │   └── bug-fixes-stage2.md # Bug documentation
+│   ├── requirements/           # Requirements and specifications
+│   │   ├── requirements.md    # Project overview
+│   │   ├── stage1_requirements.md # Stage 1 specs (505 lines)
+│   │   ├── stage2_requirements.md # Stage 2 specs (580 lines)
+│   │   └── stage3_requirements.md # Stage 3 specs
+│   ├── design/                 # Design decisions
+│   │   └── design_decisions.md # All 29 design decisions
+│   └── project-phases.md       # Roadmap and phase details
 ├── config/                     # Configuration files
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
@@ -167,17 +181,17 @@ file-organizer/
 ## 📚 Documentation
 
 ### For New Contributors
-- **Start here**: [Onboarding Guide](docs/onboarding.md)
-- **Project overview**: [Requirements](docs/requirements.md)
-- **Why decisions were made**: [Design Decisions](docs/design_decisions.md)
+- **Start here**: [Onboarding Guide](docs/guides/onboarding.md)
+- **Project overview**: [Requirements](docs/requirements/requirements.md)
+- **Why decisions were made**: [Design Decisions](docs/design/design_decisions.md)
 - **What's next**: [Project Phases](docs/project-phases.md)
 
 ### For Developers
-- **Stage 1 specs**: [stage1_requirements.md](docs/stage1_requirements.md) - 505 lines
-- **Stage 2 specs**: [stage2_requirements.md](docs/stage2_requirements.md) - 580 lines
-- **Stage 3 specs**: [stage3_requirements.md](docs/stage3_requirements.md) - 861 lines
-- **Design rationale**: [design_decisions.md](docs/design_decisions.md) - 29 decisions
-- **Agent sessions**: [agent-sessions.md](docs/agent-sessions.md) - Development history
+- **Stage 1 specs**: [stage1_requirements.md](docs/requirements/stage1_requirements.md) - 505 lines
+- **Stage 2 specs**: [stage2_requirements.md](docs/requirements/stage2_requirements.md) - 580 lines
+- **Stage 3 specs**: [stage3_requirements.md](docs/requirements/stage3_requirements.md) - 861 lines
+- **Design rationale**: [design_decisions.md](docs/design/design_decisions.md) - 29 decisions
+- **Agent sessions**: [agent-sessions.md](docs/history/agent-sessions.md) - Development history
 
 ### Total Documentation
 - **2,500+ lines** of detailed requirements
@@ -200,8 +214,8 @@ file-organizer/
 The project is currently in the **requirements phase** with complete specifications for Stages 1-2. Implementation is ready to begin.
 
 ### How to Contribute
-1. Read the [Onboarding Guide](docs/onboarding.md)
-2. Review [Stage 1 Requirements](docs/stage1_requirements.md)
+1. Read the [Onboarding Guide](docs/guides/onboarding.md)
+2. Review [Stage 1 Requirements](docs/requirements/stage1_requirements.md)
 3. Pick a component to implement
 4. Follow Python best practices (PEP 8)
 5. Write tests for your code
@@ -226,7 +240,7 @@ The project is currently in the **requirements phase** with complete specificati
 
 ## 📋 Design Decisions
 
-Key design decisions (see [design_decisions.md](docs/design_decisions.md) for complete list):
+Key design decisions (see [design_decisions.md](docs/design/design_decisions.md) for complete list):
 
 - **Adaptive Progress Reporting**: Frequency scales with file count (prevents spam)
 - **In-Memory Processing**: Leverages 32GB RAM for performance
@@ -268,10 +282,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Read the documentation
-cat docs/onboarding.md
+cat docs/guides/onboarding.md
 
 # 3. Review Stage 1 requirements
-less docs/stage1_requirements.md
+less docs/requirements/stage1_requirements.md
 
 # 4. Start implementing!
 # Create your feature branch and begin coding

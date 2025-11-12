@@ -20,7 +20,7 @@
 - Achieved: **~7,900 files/second** (total pipeline)
 - 10k files processed in 1.2 seconds
 
-**Test Results**: See [STAGE2_TEST_RESULTS.md](../STAGE2_TEST_RESULTS.md)
+**Test Results**: See [stage2-test-results.md](../history/stage2-test-results.md)
 
 ---
 
@@ -426,18 +426,27 @@ Total: 5,587 folders flattened, 4,413 remaining
 
 ## Stage Execution Order
 
-### Option A: Sequential Automatic Execution
-**Current Decision**: Run both stages automatically in sequence (from answer 11a)
-**Status**: ✓ Confirmed
+### Option A: Sequential Execution with Confirmation
+**Current Decision**: Run both stages in sequence with user confirmation between stages
+**Status**: ✓ Implemented
 
 ```bash
 file-organizer -if /path/to/directory --execute
 
 # This will:
 # 1. Run Stage 1 (filename detoxification)
-# 2. Automatically proceed to Stage 2 (folder optimization)
-# 3. Generate single combined log
+# 2. Display Stage 1 summary
+# 3. Prompt user: "Proceed to Stage 2? (yes/no):"
+#    - If yes: Run Stage 2 (folder optimization)
+#    - If no: Exit after Stage 1 completion
+# 4. Generate combined log (if both stages run)
 ```
+
+**Confirmation Behavior**:
+- Confirmation prompt appears after each stage completes
+- User can review stage results before proceeding
+- Single stage mode (`--stage 1` or `--stage 2`) skips confirmation (no next stage)
+- Works in both dry-run and execute modes
 
 ### Option B: Separate Stage Execution (Alternative)
 Allow running stages independently:
@@ -458,14 +467,21 @@ file-organizer -if /path/to/directory --stage 2 --execute
    - Delete hidden files
    - Handle symlinks
    - Rename files and folders
+   - Display Stage 1 summary
 
-2. **Stage 2**: Folder optimization (runs automatically after Stage 1)
+2. **Confirmation Prompt** (if Stage 2 will run):
+   - User is prompted: "Proceed to Stage 2: Folder Structure Optimization? (yes/no):"
+   - If confirmed: Proceed to Stage 2
+   - If declined: Exit with "Stage 1 completed. Exiting."
+
+3. **Stage 2**: Folder optimization (if confirmed)
    - Remove empty folders
    - Flatten folder chains
    - Apply threshold-based flattening (< 5 items)
    - Rename any remaining folders if needed
+   - Display Stage 2 summary
 
-3. **Report**: Combined summary
+4. **Report**: Combined summary (if both stages run)
    - Stage 1 statistics
    - Stage 2 statistics
    - Total operation time

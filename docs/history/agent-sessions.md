@@ -439,10 +439,10 @@ All Stage 2 features validated:
 3. **After completing work**: Update this file with your session summary and commit reference
 
 ### Key Documents to Review
-- `docs/requirements.md` - Start here for project overview
-- `docs/design_decisions.md` - Understand the "why" behind choices
+- `docs/requirements/requirements.md` - Start here for project overview
+- `docs/design/design_decisions.md` - Understand the "why" behind choices
 - `docs/project-phases.md` - See what's done and what's next
-- `docs/onboarding.md` - Navigation guide
+- `docs/guides/onboarding.md` - Navigation guide
 
 ### Session Format Guidelines
 Each session should document:
