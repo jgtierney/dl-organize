@@ -232,9 +232,11 @@ When duplicates are detected, Stage 3 applies this **three-tier resolution polic
   - `/input/my_keep_file.mp4` → "keep" in filename ✓
   - `/input/data/KEEP/archive.mkv` → "KEEP" in folder name ✓
 - **Action**: If only one file has "keep" → **keep that file**
-- **Tiebreaker**: If multiple files have "keep" → apply **proximity rule**:
-  - "keep" in **filename** (e.g., `keep_file.mp4`) beats "keep" in folder name
-  - "keep" in **parent folder** (e.g., `keep/file.mp4`) beats "keep" in grandparent folder
+- **Tiebreaker**: If multiple files have "keep" → apply **ancestor priority rule**:
+  - Files **under a "keep" folder** take priority (descendants of "keep" directory)
+  - **Higher ancestor** "keep" folders beat lower ones (grandparent > parent > immediate parent)
+  - "keep" in **folder name** beats "keep" in **filename**
+  - **Rationale**: Anything below a folder named "keep" should be prioritized - the higher up the "keep" folder, the more important
   - If same proximity → proceed to Priority 2 (path depth)
 
 #### Priority 2: Path Depth
@@ -262,22 +264,22 @@ Files:
 Resolution: Keep B (has "keep" keyword)
 ```
 
-**Example 1b: "keep" proximity rule (filename beats folder)**
+**Example 1b: "keep" ancestor priority (higher ancestor wins)**
 ```
 Files:
-  A: /input/keep/videos/file.mp4      (mtime: 2025-01-01, depth: 4, "keep" in grandparent)
-  B: /input/data/keep_this_file.mp4   (mtime: 2024-06-01, depth: 3, "keep" in filename)
+  A: /input/keep/videos/file.mp4      (mtime: 2025-01-01, depth: 4, under "keep" folder, 2 levels deep)
+  B: /input/data/keep/file.mp4        (mtime: 2024-01-01, depth: 4, under "keep" folder, 1 level deep)
 
-Resolution: Keep B ("keep" in filename is closer than "keep" in folder path)
+Resolution: Keep A (under "keep" folder at higher level - grandparent beats parent)
 ```
 
-**Example 1c: "keep" proximity rule (parent beats grandparent)**
+**Example 1c: "keep" folder beats filename**
 ```
 Files:
-  A: /input/keep/old/file.mp4      (mtime: 2025-11-01, depth: 4, "keep" in grandparent)
-  B: /input/data/keep/file.mp4     (mtime: 2024-01-01, depth: 4, "keep" in parent)
+  A: /input/keep/old/file.mp4         (mtime: 2025-11-01, depth: 4, under "keep" folder)
+  B: /input/data/keep_this_file.mp4   (mtime: 2025-12-01, depth: 3, "keep" in filename only)
 
-Resolution: Keep B ("keep" in parent folder beats "keep" in grandparent folder)
+Resolution: Keep A ("keep" in folder path beats "keep" in filename)
 ```
 
 **Example 2: Depth wins**
@@ -767,6 +769,21 @@ Total space reclaimed: 319.4 GB (186.4 GB + 124.8 GB + 8.2 GB)
 Files remaining: 28,084 unique files
 Time elapsed: 56.3 minutes
 ```
+
+**Progress Format Specification** (Option B - Multi-Line Phase Blocks):
+- **Format**: Multi-line phase blocks with sub-steps (as shown above)
+- **Phase visibility**: Phase blocks remain visible at top of output even in verbose mode
+  - Once a phase completes, its full summary block is printed and stays visible
+  - Subsequent phases print below completed phases
+  - User can scroll up to review completed phases
+- **Real-time updates**: Current sub-step updates in place (using `\r` carriage return)
+- **Symbols**: Minimal use - ✓ (done), ⏱ (time estimate), 📁 (folder), ← (reason)
+- **Benefits**:
+  - Clear phase separation - easy to see which phase is running
+  - Moderate detail - enough info without overwhelming
+  - Simple implementation - no complex terminal control needed
+  - Readable - can scroll back to see previous phases
+  - Professional - clean, organized appearance
 
 ---
 
