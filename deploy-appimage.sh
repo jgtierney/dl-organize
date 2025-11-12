@@ -69,6 +69,27 @@ else
     echo "⚠ Warning: Failed to set executable permissions"
 fi
 
+# Copy default config file if it doesn't exist in deployment directory
+CONFIG_FILE=".file_organizer.yaml"
+CONFIG_SOURCE="${SCRIPT_DIR}/${CONFIG_FILE}"
+CONFIG_DEST="${DEPLOY_DIR}/${CONFIG_FILE}"
+
+if [ -f "$CONFIG_SOURCE" ]; then
+    if [ ! -f "$CONFIG_DEST" ]; then
+        echo "Copying default config file to deployment directory..."
+        cp "$CONFIG_SOURCE" "$CONFIG_DEST"
+        if [ $? -eq 0 ]; then
+            echo "✓ Config file copied successfully"
+        else
+            echo "⚠ Warning: Failed to copy config file"
+        fi
+    else
+        echo "Config file already exists in deployment directory, skipping..."
+    fi
+else
+    echo "⚠ Warning: Default config file not found at $CONFIG_SOURCE"
+fi
+
 # Verify deployment
 if [ -f "$DEPLOYED_PATH" ] && [ -x "$DEPLOYED_PATH" ]; then
     DEPLOYED_SIZE=$(ls -lh "$DEPLOYED_PATH" | awk '{print $5}')

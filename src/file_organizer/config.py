@@ -266,36 +266,98 @@ def create_default_config_file(path: Optional[Path] = None) -> Path:
     if path is None:
         path = Path.cwd() / '.file_organizer.yaml'
     
-    default_config = """# File Organizer Configuration
-# Optional configuration file for file-organizer tool
-# CLI flags override these settings
+    default_config = """# File Organizer Configuration File
+# Copy this file to .file_organizer.yaml in your execution directory to customize settings
+# CLI flags override these settings (highest priority)
 
-# Default execution mode: 'dry-run' or 'execute'
+# ============================================================================
+# EXECUTION MODE
+# ============================================================================
+
+# Default execution mode when --execute flag is not specified
+# Options: 'dry-run' (preview only, no changes) | 'execute' (make changes)
+# Default: 'dry-run'
+# CLI override: --execute flag
 default_mode: dry-run
 
+# ============================================================================
+# STAGE 2: FOLDER STRUCTURE OPTIMIZATION
+# ============================================================================
+
 # Folder flattening threshold (number of items)
-# Folders with fewer than this many items will be flattened
+# Folders with fewer than this many items will be flattened into parent
+# Valid range: 0-1000 (inclusive)
+# Default: 5
+# CLI override: Not currently available via CLI
 flatten_threshold: 5
 
-# Preserve original file timestamps during operations
+# ============================================================================
+# FILE OPERATIONS
+# ============================================================================
+
+# Preserve original file timestamps during rename/move operations
+# Options: true | false
+# Default: true
+# CLI override: Not currently available via CLI
 preserve_timestamps: true
 
-# Log file location: 'cwd' (current directory) or absolute path
+# ============================================================================
+# LOGGING & OUTPUT
+# ============================================================================
+
+# Log file location
+# Options: 'cwd' (current working directory) | absolute path to directory
+# Default: 'cwd'
+# CLI override: Not currently available via CLI
 log_location: cwd
 
-# Large scale performance tuning
-# Progress update interval: 'auto' (adaptive) or specific number
-progress_update_interval: auto
-
-# Maximum number of detailed errors to log (prevents log explosion)
+# Maximum number of detailed errors to log (prevents log file explosion)
+# Valid range: 0-100000 (inclusive)
+# Default: 1000
+# CLI override: Not currently available via CLI
 max_errors_logged: 1000
 
+# ============================================================================
+# PERFORMANCE TUNING (Large Scale Operations)
+# ============================================================================
+
+# Progress update interval
+# Options: 'auto' (adaptive based on file count) | integer (number of files)
+#   - 'auto': Adapts frequency based on total file count
+#   - Integer: Update every N files (e.g., 100, 500, 1000)
+# Default: 'auto'
+# CLI override: Not currently available via CLI
+progress_update_interval: auto
+
 # Number of files between scan progress updates
+# Valid range: 1-1000000 (inclusive)
+# Default: 10000
+# CLI override: Not currently available via CLI
 scan_progress_interval: 10000
 
-# Future options (not yet implemented):
-# parallel_processing: false
-# worker_threads: 8
+# ============================================================================
+# STAGE 3: DUPLICATE DETECTION (Future Configuration)
+# ============================================================================
+
+# Note: These options are currently hardcoded but may be configurable in future:
+# 
+# skip_images: true          # Skip image files (default: true)
+#   - Skips: .jpg, .jpeg, .png, .gif, .bmp, .tiff, .webp, .svg, .ico, etc.
+#   - Reason: Images are numerous (~60-70% by count) but small (~10% by size)
+#   - They're often intentionally duplicated (thumbnails, resizes)
+# 
+# min_file_size: 10240       # Minimum file size to process (default: 10KB)
+#   - Files smaller than this are skipped
+#   - Reason: Too small to be valid video files, minimal space savings
+# 
+# These may become configurable options in a future update
+
+# ============================================================================
+# FUTURE OPTIONS (Not Yet Implemented)
+# ============================================================================
+
+# parallel_processing: false  # Enable parallel processing (future)
+# worker_threads: 8           # Number of worker threads (future)
 """
     
     with open(path, 'w') as f:
