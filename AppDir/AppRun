@@ -1,0 +1,28 @@
+#!/bin/bash
+APPDIR="$(dirname "$(readlink -f "$0")")"
+export PYTHONPATH="$APPDIR/usr/lib/python3.12/site-packages:$PYTHONPATH"
+export PYTHONHOME="$APPDIR/usr"
+export LD_LIBRARY_PATH="$APPDIR/usr/lib:$LD_LIBRARY_PATH"
+export PATH="$APPDIR/usr/bin:$PATH"
+
+# Set APPIMAGE environment variable if not already set
+# This helps the application detect it's running from AppImage
+if [ -z "$APPIMAGE" ]; then
+    # Try to find the AppImage file from the mount point
+    # AppImages are typically mounted to /tmp/.mount_AppImageName_XXXXXX
+    if [[ "$APPDIR" == */.mount_* ]]; then
+        # Extract potential AppImage name from mount point
+        MOUNT_NAME=$(basename "$APPDIR" | sed 's/^\.mount_//' | cut -d'_' -f1)
+        # Try to find the AppImage file in common locations
+        for dir in "$HOME" /opt /usr/local/bin "$(dirname "$0")/.."; do
+            if [ -f "$dir/${MOUNT_NAME}.AppImage" ] || [ -f "$dir/file-organizer-x86_64.AppImage" ]; then
+                export APPIMAGE="$dir/${MOUNT_NAME}.AppImage"
+                [ -f "$APPIMAGE" ] || export APPIMAGE="$dir/file-organizer-x86_64.AppImage"
+                break
+            fi
+        done
+    fi
+fi
+
+# Run the application
+exec "$APPDIR/usr/bin/python3" -m file_organizer.cli "$@"

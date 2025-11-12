@@ -21,12 +21,12 @@ The File Organizer is being developed in multiple stages, each building on the p
 
 | Stage | Name | Status | Lines of Specs | Completion |
 |-------|------|--------|----------------|------------|
-| **1** | Filename Detoxification | ✅ Requirements Complete | 505 | Ready for dev |
-| **2** | Folder Structure Optimization | ✅ Requirements Complete | 580 | Ready for dev |
-| **3** | Duplicate Detection & Resolution | 📋 Planning | TBD | Not started |
+| **1** | Filename Detoxification | ✅ Implementation Complete | 505 | Production ready |
+| **2** | Folder Structure Optimization | ✅ Implementation Complete | 580 | Production ready |
+| **3** | Duplicate Detection & Resolution | ✅ Requirements Complete | 861 | Ready for dev |
 | **4** | File Relocation | 📋 Planning | TBD | Not started |
 
-**Total Requirements Documentation**: 1,639 lines across 4 detailed documents + 1 agent session log
+**Total Requirements Documentation**: 2,500+ lines across detailed documents + agent session logs
 
 ---
 
@@ -147,9 +147,9 @@ max_errors_logged: 1000
 
 ## Stage 3: Duplicate Detection & Resolution
 
-### Status: 📋 Planning Phase
+### Status: ✅ Requirements Complete
 
-**Document**: To be created (`stage3_requirements.md`)
+**Document**: [`stage3_requirements.md`](./stage3_requirements.md)
 
 ### Objective
 Identify and resolve duplicate files within the input folder and prevent duplicate collisions when relocating to output folder.
@@ -269,12 +269,16 @@ file-organizer -if /path/to/input -of /path/to/output --execute
 
 **Process**:
 1. **Scan**: Count files and folders, estimate time
-2. **Confirmation**: Display stats, ask user to confirm (if > 1 min)
+2. **Initial Confirmation**: Display stats, ask user to confirm (if execute mode)
 3. **Stage 1**: Filename detoxification (in-place in input folder)
-4. **Stage 2**: Folder optimization (in-place in input folder)
-5. **Stage 3**: Duplicate detection and resolution (in input folder)
-6. **Stage 4**: File relocation (input → output)
-7. **Report**: Summary of all operations
+4. **Stage 1 Summary**: Display results
+5. **Confirmation**: Prompt user to proceed to Stage 2 (yes/no)
+6. **Stage 2**: Folder optimization (in-place in input folder, if confirmed)
+7. **Stage 2 Summary**: Display results (if Stage 2 ran)
+8. **Confirmation**: Prompt user to proceed to Stage 3 (yes/no, when implemented)
+9. **Stage 3**: Duplicate detection and resolution (in input folder, if confirmed)
+10. **Stage 4**: File relocation (input → output, if confirmed)
+11. **Report**: Summary of all operations
 
 **Estimated Time for 500k files**:
 - Stage 1: 25-50 minutes

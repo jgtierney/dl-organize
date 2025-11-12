@@ -1,0 +1,5 @@
+#!/bin/bash
+APPDIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
+export PYTHONPATH="$APPDIR/lib/python3.12/site-packages:$PYTHONPATH"
+export PYTHONHOME="$APPDIR"
+exec "$APPDIR/bin/python3" -m file_organizer.cli "$@"

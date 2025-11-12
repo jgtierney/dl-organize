@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=File Organizer
+Comment=Systematically organize and clean up large file collections
+Exec=file-organizer
+Icon=file-organizer
+Categories=Utility;FileTools;
+Terminal=true
+
