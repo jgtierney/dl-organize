@@ -11,7 +11,9 @@ from typing import Optional
 
 from . import __version__
 from .stage1 import Stage1Processor
+from .stage2 import Stage2Processor
 from .stage3 import Stage3
+from .config import Config
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -88,6 +90,15 @@ def parse_arguments() -> argparse.Namespace:
         default=10240,
         metavar="BYTES",
         help="Minimum file size to process in duplicate detection (default: 10240 bytes = 10KB)"
+    )
+
+    # Stage 2-specific arguments
+    parser.add_argument(
+        "--flatten-threshold",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Flatten folders with N or fewer items (default: 5)"
     )
 
     return parser.parse_args()
@@ -191,13 +202,21 @@ def main() -> int:
             )
             stage1.process()
 
-        # Stage 2: Folder Optimization (not yet implemented)
+        # Stage 2: Folder Optimization
         if run_all or args.stage == "2":
-            print("\nStarting Stage 2: Folder Optimization...")
-            print("⚠️  Stage 2 not yet implemented")
-            # TODO: Implement Stage 2
-            # stage2 = Stage2Processor(...)
-            # stage2.process()
+            print("\nStarting Stage 2: Folder Structure Optimization...")
+
+            # Load config for flatten threshold
+            config = Config()
+            flatten_threshold = args.flatten_threshold
+
+            stage2 = Stage2Processor(
+                input_dir=Path(args.input_folder),
+                dry_run=not args.execute,
+                flatten_threshold=flatten_threshold,
+                config=config
+            )
+            stage2.process()
 
         # Stage 3A: Internal Duplicate Detection
         if run_all or args.stage == "3a":
