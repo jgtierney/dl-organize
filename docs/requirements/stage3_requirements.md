@@ -166,6 +166,128 @@ src/file_organizer/
 
 ---
 
+## Metadata-First Deduplication Strategy
+
+### The Optimization
+
+**Key Insight**: Only hash files when there's a probability of duplication (size collision).
+
+### Process
+
+**Phase 1: Metadata Collection (Fast)**
+1. Scan all files and collect lightweight metadata:
+   - File path
+   - File size (from stat(), instant)
+   - Modification time (from stat(), instant)
+   - (Optionally) Video duration (for videos, ~0.05s per file)
+2. Store all metadata in database
+3. **NO HASHING YET**
+
+**Phase 2: Size Grouping (Fast)**
+1. Group files by exact size
+2. Identify size collision groups (2+ files with same size)
+3. Calculate savings: Files with unique sizes will NEVER be hashed
+
+**Phase 3: Selective Hashing (Deferred, Only When Needed)**
+1. **ONLY hash files in size collision groups** (2+ files same size)
+2. Files with unique sizes → Skip hashing entirely
+3. Store hashes in database for collision groups
+
+**Phase 4: Duplicate Detection (Standard)**
+1. Within each size group, group by hash
+2. Identical hash → Duplicates found
+
+### Performance Impact
+
+**Typical Dataset** (2TB, 100k files):
+- **80-90% of files have unique sizes** (no collision)
+- These files are NEVER hashed
+- **Only 10-20% of files** need hashing (those in size collision groups)
+
+**Time Savings**:
+```
+Traditional approach: Hash all 100k files
+  100,000 files × 0.5s avg = 50,000s = ~14 hours
+
+Metadata-first approach: Hash only collision groups
+  10,000 files × 0.5s avg = 5,000s = ~1.4 hours
+
+Speedup: 10x faster for hashing phase
+```
+
+### Correctness Guarantee
+
+**Fundamental Truth**: Files with different sizes CANNOT be byte-for-byte identical.
+
+Therefore:
+- ✅ Skipping unique-sized files is **100% safe**
+- ✅ Yields **identical results** to hashing all files
+- ✅ No false negatives (missed duplicates)
+- ✅ No false positives (incorrect duplicates)
+
+### Implementation Details
+
+**Database Schema** (already specified in hash_cache):
+```sql
+CREATE TABLE file_cache (
+    file_path TEXT NOT NULL,
+    folder TEXT NOT NULL,
+    file_hash TEXT,              -- NULL for unique-sized files (not hashed)
+    hash_type TEXT,              -- NULL if not hashed
+    file_size INTEGER NOT NULL,  -- Always populated (key for grouping)
+    file_mtime REAL NOT NULL,    -- Always populated
+    ...
+);
+
+-- Index for size-based grouping
+CREATE INDEX idx_size_grouping ON file_cache(file_size);
+```
+
+**Cache Efficiency**:
+- Unique-sized files: `file_hash = NULL` (never computed)
+- Collision group files: `file_hash` populated on first run
+- Subsequent runs: Check size first, only rehash if size collision exists
+
+### Progress Reporting
+
+Make the optimization visible to users:
+```
+[SCAN PHASE]
+Files scanned: 100,000
+
+[SIZE GROUPING]
+Unique sizes: 85,342 files (85.3%) → No hashing needed ✓
+Size collisions: 14,658 files in 4,231 groups → Will hash
+
+[HASH PHASE]
+Hashing 14,658 files (85.3% reduction)...
+Progress: [████████████████████] 14,658 / 14,658 (100%)
+Files skipped (unique size): 85,342
+```
+
+### Integration with Video Metadata Optimization
+
+This strategy **stacks** with video metadata optimization:
+
+1. **Size grouping** (eliminate 80-90% of files)
+2. **Video duration check** (eliminate 80-90% of remaining video collisions)
+3. **Hash remaining** (only 1-4% of total files)
+
+**Combined speedup**: ~50-100x reduction in hashing workload
+
+### Why This Wasn't Explicit Before
+
+Looking at the current Stage 3A process (line 94-105), this optimization is already implied:
+```
+3. Group files by size (different sizes can't be duplicates)
+4. For size groups with 2+ files:
+   - [...hash content]
+```
+
+However, it wasn't emphasized as a **key performance optimization** or explained why it's so effective.
+
+---
+
 ## Large File Sampling Strategy
 
 ### Problem
@@ -508,11 +630,12 @@ file-organizer -if /path/to/input -of /path/to/output --stage 3b --execute
 
 ### Output Folder Requirement
 
-**Early Validation (Before Stage 1)**:
-- Check output folder availability at **initial launch** before any processing begins
-- If output folder specified with `-of` flag but doesn't exist → **Error and exit immediately**
-- Rationale: Fail fast to avoid wasting time on Stages 1-2 if Stage 3B will fail
-- User must create output folder before running full pipeline
+**Early Validation (Before Stage 1 - FAIL FAST)**:
+- **TIMING**: Check output folder availability at **initial launch** BEFORE Stage 1 begins
+- **TRIGGER**: If output folder specified with `-of` flag but doesn't exist → **Error and exit immediately**
+- **Rationale**: Fail fast to avoid wasting time on Stages 1-2 if Stage 3B will ultimately fail
+- **Action**: User must create output folder before running full pipeline
+- **Implementation**: Add validation check in main CLI entry point before stage processing begins
 
 **Stage 3B requires output folder to exist**:
 - If output folder doesn't exist → Error and exit
@@ -530,14 +653,17 @@ file-organizer -if /path/to/input -of /path/to/output --stage 3b --execute
 ### File Placement
 
 **Configuration file**: `.file_organizer.yaml` in the directory where the application is executed from
-- NOT in home directory (`~/.file_organizer.yaml`)
+- **NOT** in home directory (`~/.file_organizer.yaml`) - this is a hard switch
+- Only execution directory config is supported
 - Allows per-project configuration
 - Example: `/path/to/project/.file_organizer.yaml`
 
 **Database/Cache location**: `.file_organizer_cache/` subdirectory in the execution directory
-- NOT in home directory (`~/.file_organizer_cache/`)
+- **NOT** in home directory (`~/.file_organizer_cache/`)
 - Keeps all project data together
 - Example: `/path/to/project/.file_organizer_cache/hashes.db`
+
+**Rationale**: Co-locating configuration and cache with the data being processed makes the tool portable and avoids cross-project contamination.
 
 ### Extended YAML Configuration
 
@@ -1032,7 +1158,9 @@ except sqlite3.DatabaseError:
 
 ### Test Data Generation
 
-**tools/generate_test_data_stage3.py**:
+**PRIORITY**: Create test data generator BEFORE starting MVP implementation to enable test-driven development.
+
+**tools/generate_test_data_stage3.py** (extend existing `tools/generate_test_data.py`):
 ```python
 def generate_stage3_test_data(output_dir):
     """
