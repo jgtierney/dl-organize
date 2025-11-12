@@ -11,13 +11,22 @@ Creates realistic test datasets with various edge cases:
 - Multiple extensions
 - Non-ASCII characters
 - Special characters
+
+Stage 3 additions:
+- Exact duplicate files (byte-for-byte copies)
+- Files with "keep" keyword in paths
+- Size collision groups (same size, different content)
+- Varied modification times
 """
 
 import os
 import random
 import argparse
+import shutil
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 
 class TestDataGenerator:
@@ -238,6 +247,224 @@ class TestDataGenerator:
         
         print(f"    Added edge cases: {len(hidden_files)} hidden files, collision tests, deep nesting, etc.")
 
+    def generate_stage3_dataset(self, size: str = "small"):
+        """
+        Generate Stage 3-specific test dataset with duplicates and collisions.
+
+        Dataset includes:
+        - Exact duplicate files (for deduplication testing)
+        - Files with "keep" keyword in various path positions
+        - Size collision groups (same size, different content)
+        - Varied modification times
+
+        Args:
+            size: Dataset size - "small" (100 files), "medium" (1k), "stage3" (custom)
+        """
+        sizes = {
+            "small": (100, 20, 10),  # (total files, duplicates, size collisions)
+            "medium": (1000, 200, 50),
+            "stage3": (500, 100, 30),  # Optimized for Stage 3 testing
+        }
+
+        num_files, num_duplicates, num_collisions = sizes.get(size, sizes["small"])
+
+        print(f"\nGenerating Stage 3 test dataset ({size})...")
+        print(f"Target: {num_files:,} total files")
+        print(f"  - {num_duplicates} duplicate files")
+        print(f"  - {num_collisions} size collision groups")
+        print(f"  - Various 'keep' keyword paths")
+        print(f"Location: {self.base_path}\n")
+
+        # Create base directory
+        self.base_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate components
+        print("[1/4] Generating unique files...")
+        unique_files = self._generate_stage3_unique_files(num_files - num_duplicates)
+
+        print("[2/4] Generating exact duplicates...")
+        self._generate_stage3_duplicates(unique_files, num_duplicates)
+
+        print("[3/4] Generating 'keep' keyword paths...")
+        self._generate_stage3_keep_paths()
+
+        print("[4/4] Generating size collision groups...")
+        self._generate_stage3_size_collisions(num_collisions)
+
+        print(f"\n✓ Stage 3 test data generated successfully!")
+        print(f"  Total files: {self.file_count:,}")
+        print(f"  Total folders: {self.folder_count:,}")
+
+    def _generate_stage3_unique_files(self, count: int) -> List[Path]:
+        """Generate unique files with varied sizes and mtimes."""
+        created_files = []
+
+        # File size ranges (in bytes)
+        size_ranges = [
+            (100, 1024),           # Tiny: 100B - 1KB
+            (1024, 10240),         # Small: 1KB - 10KB (some will be skipped)
+            (10240, 102400),       # Medium: 10KB - 100KB
+            (102400, 1048576),     # Large: 100KB - 1MB
+        ]
+
+        for i in range(count):
+            # Create nested folder structure
+            folder_depth = random.randint(1, 4)
+            folder_parts = [f"folder_{random.randint(1, 5)}" for _ in range(folder_depth)]
+            folder_path = self.base_path / Path(*folder_parts)
+            folder_path.mkdir(parents=True, exist_ok=True)
+            self.folder_count += 1
+
+            # Create file with random size
+            size_range = random.choice(size_ranges)
+            file_size = random.randint(*size_range)
+            file_path = folder_path / f"file_{i:04d}.dat"
+
+            # Generate random content
+            content = os.urandom(file_size)
+            file_path.write_bytes(content)
+
+            # Set random modification time (last 365 days)
+            days_ago = random.randint(1, 365)
+            mtime = (datetime.now() - timedelta(days=days_ago)).timestamp()
+            os.utime(file_path, (mtime, mtime))
+
+            created_files.append(file_path)
+            self.file_count += 1
+
+            if (i + 1) % 100 == 0:
+                print(f"  Created {i + 1}/{count} unique files...")
+
+        print(f"  ✓ Created {count} unique files")
+        return created_files
+
+    def _generate_stage3_duplicates(self, source_files: List[Path], num_duplicates: int):
+        """Generate exact duplicates of randomly selected files."""
+        duplicate_count = 0
+
+        # Create duplicate groups (2-3 copies of some originals)
+        num_groups = num_duplicates // 2  # Average 2 duplicates per group
+
+        for group_idx in range(num_groups):
+            # Select random source file
+            if not source_files:
+                break
+
+            source = random.choice(source_files)
+
+            # Create 2-3 duplicates
+            num_copies = random.randint(2, 3)
+
+            for copy_idx in range(num_copies):
+                # Place duplicate in different location
+                folder_depth = random.randint(1, 5)
+                folder_parts = [f"dup_{random.randint(1, 10)}" for _ in range(folder_depth)]
+                dup_folder = self.base_path / Path(*folder_parts)
+                dup_folder.mkdir(parents=True, exist_ok=True)
+
+                # Copy file (exact duplicate)
+                dup_path = dup_folder / f"duplicate_{group_idx}_{copy_idx}.dat"
+                shutil.copy2(source, dup_path)
+
+                # Set different modification time
+                days_ago = random.randint(1, 730)  # Up to 2 years ago
+                mtime = (datetime.now() - timedelta(days=days_ago)).timestamp()
+                os.utime(dup_path, (mtime, mtime))
+
+                duplicate_count += 1
+                self.file_count += 1
+
+                if duplicate_count >= num_duplicates:
+                    break
+
+            if duplicate_count >= num_duplicates:
+                break
+
+        print(f"  ✓ Created {duplicate_count} duplicate files in {num_groups} groups")
+
+    def _generate_stage3_keep_paths(self):
+        """Generate files with 'keep' keyword in various path positions."""
+        keep_scenarios = [
+            # "keep" in grandparent folder (highest priority)
+            ("keep", "subfolder1", "subfolder2", "file_in_keep_grandparent.dat"),
+
+            # "keep" in parent folder
+            ("data", "keep", "file_in_keep_parent.dat"),
+
+            # "keep" in immediate folder
+            ("data", "archive", "keep", "file_in_keep_immediate.dat"),
+
+            # "keep" in filename only (lowest priority)
+            ("data", "regular", "keep_this_file.dat"),
+            ("data", "regular", "file_keep.dat"),
+
+            # Multiple scenarios for testing
+            ("KEEP", "important", "file.dat"),  # Case-insensitive
+            ("keep_these", "videos", "file.dat"),  # "keep" in folder name
+        ]
+
+        content = b"Important data that should be kept!\n" * 100
+
+        for path_parts in keep_scenarios:
+            folder_path = self.base_path / Path(*path_parts[:-1])
+            folder_path.mkdir(parents=True, exist_ok=True)
+
+            file_path = folder_path / path_parts[-1]
+            file_path.write_bytes(content)
+
+            # Set recent modification time (these are "important")
+            mtime = (datetime.now() - timedelta(days=random.randint(1, 30))).timestamp()
+            os.utime(file_path, (mtime, mtime))
+
+            self.file_count += 1
+
+        # Create duplicates of some "keep" files to test priority
+        keep_file1 = self.base_path / "keep" / "subfolder1" / "subfolder2" / "file_in_keep_grandparent.dat"
+        dup1 = self.base_path / "archive" / "duplicate_of_keep.dat"
+        dup1.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(keep_file1, dup1)
+        self.file_count += 1
+
+        print(f"  ✓ Created {len(keep_scenarios) + 1} files with 'keep' keyword paths")
+
+    def _generate_stage3_size_collisions(self, num_groups: int):
+        """Generate files with same size but different content."""
+        target_sizes = [
+            1024,      # 1KB
+            10240,     # 10KB
+            102400,    # 100KB
+            524288,    # 512KB
+        ]
+
+        collision_count = 0
+
+        for group_idx in range(num_groups):
+            # Pick a target size
+            target_size = random.choice(target_sizes)
+
+            # Create 2-3 files with exact same size but different content
+            files_in_group = random.randint(2, 3)
+
+            for file_idx in range(files_in_group):
+                # Random folder
+                folder_path = self.base_path / f"collisions" / f"group_{group_idx}"
+                folder_path.mkdir(parents=True, exist_ok=True)
+
+                # Generate file with exact target size
+                content = os.urandom(target_size)
+                file_path = folder_path / f"collision_{file_idx}.dat"
+                file_path.write_bytes(content)
+
+                # Random mtime
+                days_ago = random.randint(1, 365)
+                mtime = (datetime.now() - timedelta(days=days_ago)).timestamp()
+                os.utime(file_path, (mtime, mtime))
+
+                collision_count += 1
+                self.file_count += 1
+
+        print(f"  ✓ Created {collision_count} files in {num_groups} size collision groups")
+
 
 def main():
     """Main entry point."""
@@ -252,18 +479,30 @@ def main():
     parser.add_argument(
         "--size",
         type=str,
-        choices=["small", "medium", "large"],
+        choices=["small", "medium", "large", "stage3"],
         default="small",
-        help="Dataset size: small (100 files), medium (10k), large (100k)"
+        help="Dataset size: small (100 files), medium (10k), large (100k), stage3 (500 files optimized for Stage 3)"
     )
-    
+    parser.add_argument(
+        "--stage3",
+        action="store_true",
+        help="Generate Stage 3-specific test data (duplicates, collisions, 'keep' paths)"
+    )
+
     args = parser.parse_args()
-    
+
     generator = TestDataGenerator(Path(args.output_dir))
-    generator.generate_dataset(args.size)
-    
-    print(f"\nTest data ready at: {args.output_dir}")
-    print(f"You can now test with: python -m file_organizer -if {args.output_dir}")
+
+    if args.stage3:
+        # Generate Stage 3-specific test data
+        generator.generate_stage3_dataset(args.size)
+        print(f"\nStage 3 test data ready at: {args.output_dir}")
+        print(f"Test Stage 3 with: python -m file_organizer -if {args.output_dir} --stage 3a")
+    else:
+        # Generate regular test data (for Stages 1-2)
+        generator.generate_dataset(args.size)
+        print(f"\nTest data ready at: {args.output_dir}")
+        print(f"You can now test with: python -m file_organizer -if {args.output_dir}")
 
 
 if __name__ == "__main__":
