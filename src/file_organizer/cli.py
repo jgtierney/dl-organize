@@ -13,6 +13,7 @@ from . import __version__
 from .stage1 import Stage1Processor
 from .stage2 import Stage2Processor
 from .stage3 import Stage3
+from .stage4 import Stage4Processor
 from .config import Config
 
 
@@ -65,8 +66,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--stage",
         type=str,
-        choices=["1", "2", "3a", "3b"],
-        help="Run specific stage only (1=filename, 2=folders, 3a=duplicates-input, 3b=duplicates-cross)"
+        choices=["1", "2", "3a", "3b", "4"],
+        help="Run specific stage only (1=filename, 2=folders, 3a=duplicates-input, 3b=duplicates-cross, 4=relocation)"
     )
 
     # Stage 3-specific arguments
@@ -101,6 +102,13 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         metavar="N",
         help="Flatten folders with N or fewer items (default: from config or 5)"
+    )
+
+    # Stage 4-specific arguments
+    parser.add_argument(
+        "--preserve-input",
+        action="store_true",
+        help="Keep input folder with files after relocation (default: clean input folder)"
     )
 
     return parser.parse_args()
@@ -153,6 +161,10 @@ def validate_arguments(args: argparse.Namespace) -> Optional[str]:
     # Validate Stage 3B requires output folder
     if args.stage == "3b" and not args.output_folder:
         return "Stage 3B requires --output-folder for cross-folder deduplication"
+
+    # Validate Stage 4 requires output folder
+    if args.stage == "4" and not args.output_folder:
+        return "Stage 4 requires --output-folder for file relocation"
 
     return None
 
@@ -290,6 +302,33 @@ def main() -> int:
 
                 if not args.execute and results.total_duplicates > 0:
                     print("\n💡 TIP: Run with --execute to actually delete duplicates")
+
+        # Stage 4: File Relocation
+        # Run if explicitly requested OR if run_all and output folder provided
+        should_run_4 = args.stage == "4" or (run_all and args.output_folder)
+
+        if should_run_4:
+            # Validate output folder is provided
+            if not args.output_folder:
+                print("\n❌ ERROR: Stage 4 requires --output-folder (-of)")
+                return 1
+
+            print("\nStarting Stage 4: File Relocation...")
+            if run_all:
+                print("💡 Output folder detected - running Stage 4 to relocate files")
+
+            stage4 = Stage4Processor(
+                input_folder=Path(args.input_folder),
+                output_folder=Path(args.output_folder),
+                preserve_input=args.preserve_input,
+                dry_run=not args.execute,
+                verbose=True
+            )
+
+            results = stage4.process()
+
+            if not args.execute:
+                print("\n💡 TIP: Run with --execute to actually move files")
 
         print("\n" + "=" * 70)
         print("✓ Processing complete!")
