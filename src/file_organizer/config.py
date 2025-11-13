@@ -30,6 +30,11 @@ class Config:
         'progress_update_interval': 'auto',
         'max_errors_logged': 1000,
         'scan_progress_interval': 10000,
+        'duplicate_detection': {
+            'skip_images': True,
+            'min_file_size': 10240  # 10KB
+        },
+        'verbose': False
     }
     
     def __init__(self, config_path: Optional[Path] = None):
@@ -235,7 +240,130 @@ class Config:
         except (ValueError, TypeError) as e:
             print(f"WARNING: Invalid scan_progress_interval value '{value}': {e}. Using default (10,000).")
             return 10000
-    
+
+    def get_skip_images(self, cli_override: Optional[bool] = None) -> bool:
+        """
+        Get whether to skip image files in duplicate detection.
+
+        Returns:
+            Boolean value (default: True - skip images)
+        """
+        # CLI override takes precedence
+        if cli_override is not None:
+            return cli_override
+
+        # Try to get from nested duplicate_detection config
+        if 'duplicate_detection' in self.config_data:
+            dup_config = self.config_data['duplicate_detection']
+            if isinstance(dup_config, dict) and 'skip_images' in dup_config:
+                value = dup_config['skip_images']
+            else:
+                value = None
+        else:
+            value = None
+
+        # Fall back to defaults
+        if value is None:
+            return self.DEFAULTS['duplicate_detection']['skip_images']
+
+        # Handle various boolean representations
+        if isinstance(value, bool):
+            return value
+
+        # Handle string representations
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', 'yes', '1', 'on', 'enabled'):
+                return True
+            elif value_lower in ('false', 'no', '0', 'off', 'disabled'):
+                return False
+            else:
+                print(f"WARNING: Invalid skip_images value '{value}'. Using default (True).")
+                return True
+
+        # Handle numeric (0 = False, anything else = True)
+        try:
+            return bool(int(value))
+        except (ValueError, TypeError):
+            print(f"WARNING: Invalid skip_images value '{value}'. Using default (True).")
+            return True
+
+    def get_min_file_size(self, cli_override: Optional[int] = None) -> int:
+        """
+        Get minimum file size for duplicate detection.
+
+        Returns:
+            Valid size in bytes between 0 and 1GB (inclusive), default: 10240 (10KB)
+        """
+        # CLI override takes precedence
+        if cli_override is not None:
+            value = cli_override
+        # Try to get from nested duplicate_detection config
+        elif 'duplicate_detection' in self.config_data:
+            dup_config = self.config_data['duplicate_detection']
+            if isinstance(dup_config, dict) and 'min_file_size' in dup_config:
+                value = dup_config['min_file_size']
+            else:
+                value = None
+        else:
+            value = None
+
+        # Fall back to defaults
+        if value is None:
+            return self.DEFAULTS['duplicate_detection']['min_file_size']
+
+        try:
+            min_size = int(value)
+
+            # Validate range
+            if min_size < 0:
+                print(f"WARNING: min_file_size must be >= 0, got {min_size}. Using 0.")
+                return 0
+
+            if min_size > 1024 * 1024 * 1024:  # 1GB
+                print(f"WARNING: min_file_size very high ({min_size}), capping at 1GB.")
+                return 1024 * 1024 * 1024
+
+            return min_size
+
+        except (ValueError, TypeError) as e:
+            print(f"WARNING: Invalid min_file_size value '{value}': {e}. Using default (10240).")
+            return 10240
+
+    def get_verbose(self, cli_override: Optional[bool] = None) -> bool:
+        """
+        Get verbose logging setting.
+
+        Returns:
+            Boolean value (default: False)
+        """
+        value = self.get('verbose', cli_override)
+
+        if value is None:
+            return False
+
+        # Handle various boolean representations
+        if isinstance(value, bool):
+            return value
+
+        # Handle string representations
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', 'yes', '1', 'on', 'enabled'):
+                return True
+            elif value_lower in ('false', 'no', '0', 'off', 'disabled'):
+                return False
+            else:
+                print(f"WARNING: Invalid verbose value '{value}'. Using default (False).")
+                return False
+
+        # Handle numeric (0 = False, anything else = True)
+        try:
+            return bool(int(value))
+        except (ValueError, TypeError):
+            print(f"WARNING: Invalid verbose value '{value}'. Using default (False).")
+            return False
+
     def has_config_file(self) -> bool:
         """Check if a configuration file exists and was loaded."""
         return self.config_path.exists() and bool(self.config_data)
@@ -305,6 +433,12 @@ preserve_timestamps: true
 # LOGGING & OUTPUT
 # ============================================================================
 
+# Verbose output (detailed logging to console)
+# Options: true | false
+# Default: false
+# CLI override: --verbose flag
+verbose: false
+
 # Log file location
 # Options: 'cwd' (current working directory) | absolute path to directory
 # Default: 'cwd'
@@ -336,21 +470,25 @@ progress_update_interval: auto
 scan_progress_interval: 10000
 
 # ============================================================================
-# STAGE 3: DUPLICATE DETECTION (Future Configuration)
+# STAGE 3: DUPLICATE DETECTION
 # ============================================================================
 
-# Note: These options are currently hardcoded but may be configurable in future:
-# 
-# skip_images: true          # Skip image files (default: true)
-#   - Skips: .jpg, .jpeg, .png, .gif, .bmp, .tiff, .webp, .svg, .ico, etc.
-#   - Reason: Images are numerous (~60-70% by count) but small (~10% by size)
-#   - They're often intentionally duplicated (thumbnails, resizes)
-# 
-# min_file_size: 10240       # Minimum file size to process (default: 10KB)
-#   - Files smaller than this are skipped
-#   - Reason: Too small to be valid video files, minimal space savings
-# 
-# These may become configurable options in a future update
+# Duplicate detection settings (nested under duplicate_detection key)
+duplicate_detection:
+  # Skip image files during duplicate detection
+  # Options: true | false
+  # Default: true
+  # Reason: Images are numerous (~60-70% by count) but small (~10% by size)
+  #         They're often intentionally duplicated (thumbnails, resizes)
+  # CLI override: --skip-images or --no-skip-images
+  skip_images: true
+
+  # Minimum file size to process in duplicate detection (bytes)
+  # Valid range: 0 to 1GB (1073741824 bytes)
+  # Default: 10240 (10KB)
+  # Reason: Files too small are usually not worth deduplicating
+  # CLI override: --min-file-size BYTES
+  min_file_size: 10240
 
 # ============================================================================
 # FUTURE OPTIONS (Not Yet Implemented)

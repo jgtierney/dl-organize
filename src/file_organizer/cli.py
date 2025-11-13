@@ -73,32 +73,34 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--skip-images",
         action="store_true",
-        default=True,
-        help="Skip image files in duplicate detection (default: enabled)"
+        default=None,
+        dest="skip_images_flag",
+        help="Skip image files in duplicate detection (default: from config or True)"
     )
 
     parser.add_argument(
         "--no-skip-images",
-        action="store_false",
-        dest="skip_images",
+        action="store_true",
+        default=None,
+        dest="no_skip_images_flag",
         help="Include image files in duplicate detection"
     )
 
     parser.add_argument(
         "--min-file-size",
         type=int,
-        default=10240,
+        default=None,
         metavar="BYTES",
-        help="Minimum file size to process in duplicate detection (default: 10240 bytes = 10KB)"
+        help="Minimum file size to process in duplicate detection (default: from config or 10240 bytes = 10KB)"
     )
 
     # Stage 2-specific arguments
     parser.add_argument(
         "--flatten-threshold",
         type=int,
-        default=5,
+        default=None,
         metavar="N",
-        help="Flatten folders with N or fewer items (default: 5)"
+        help="Flatten folders with N or fewer items (default: from config or 5)"
     )
 
     return parser.parse_args()
@@ -190,6 +192,9 @@ def main() -> int:
         print()
     
     try:
+        # Load configuration (CLI args override config file)
+        config = Config()
+
         # Determine which stages to run
         run_all = args.stage is None
 
@@ -206,9 +211,8 @@ def main() -> int:
         if run_all or args.stage == "2":
             print("\nStarting Stage 2: Folder Structure Optimization...")
 
-            # Load config for flatten threshold
-            config = Config()
-            flatten_threshold = args.flatten_threshold
+            # Get flatten threshold from config (CLI override if provided)
+            flatten_threshold = config.get_flatten_threshold(cli_override=args.flatten_threshold)
 
             stage2 = Stage2Processor(
                 input_dir=Path(args.input_folder),
@@ -221,13 +225,26 @@ def main() -> int:
         # Stage 3A: Internal Duplicate Detection
         if run_all or args.stage == "3a":
             print("\nStarting Stage 3A: Internal Duplicate Detection...")
+
+            # Get Stage 3 settings from config (CLI override if provided)
+            # Determine skip_images from CLI flags or config
+            skip_images_cli = None
+            if args.skip_images_flag:
+                skip_images_cli = True
+            elif args.no_skip_images_flag:
+                skip_images_cli = False
+            skip_images = config.get_skip_images(cli_override=skip_images_cli)
+
+            min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
+            verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
+
             with Stage3(
                 input_folder=Path(args.input_folder),
                 output_folder=None,  # Stage 3A doesn't use output folder
-                skip_images=args.skip_images,
-                min_file_size=args.min_file_size,
+                skip_images=skip_images,
+                min_file_size=min_file_size,
                 dry_run=not args.execute,
-                verbose=True  # Always verbose for now
+                verbose=verbose
             ) as stage3:
                 results = stage3.run_stage3a()
 
@@ -249,13 +266,25 @@ def main() -> int:
             if run_all:
                 print("💡 Output folder detected - running Stage 3B to find cross-folder duplicates")
 
+            # Get Stage 3 settings from config (CLI override if provided)
+            # Determine skip_images from CLI flags or config
+            skip_images_cli = None
+            if args.skip_images_flag:
+                skip_images_cli = True
+            elif args.no_skip_images_flag:
+                skip_images_cli = False
+            skip_images = config.get_skip_images(cli_override=skip_images_cli)
+
+            min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
+            verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
+
             with Stage3(
                 input_folder=Path(args.input_folder),
                 output_folder=Path(args.output_folder),
-                skip_images=args.skip_images,
-                min_file_size=args.min_file_size,
+                skip_images=skip_images,
+                min_file_size=min_file_size,
                 dry_run=not args.execute,
-                verbose=True  # Always verbose for now
+                verbose=verbose
             ) as stage3:
                 results = stage3.run_stage3b()
 
