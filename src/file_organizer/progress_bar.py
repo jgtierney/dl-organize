@@ -11,7 +11,7 @@ Features:
 """
 
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 
 
 class ProgressBar:
@@ -87,7 +87,7 @@ class ProgressBar:
 
         return False
 
-    def update(self, current: int, stats: Optional[Dict[str, int]] = None):
+    def update(self, current: int, stats: Optional[Dict[str, Union[int, str]]] = None):
         """
         Update progress bar.
 
@@ -133,13 +133,19 @@ class ProgressBar:
 
         # Add verbose statistics if provided
         if self.verbose and stats:
-            stats_str = ", ".join(f"{k}: {v:,}" for k, v in stats.items())
+            stats_parts = []
+            for k, v in stats.items():
+                if isinstance(v, int):
+                    stats_parts.append(f"{k}: {v:,}")
+                else:
+                    stats_parts.append(f"{k}: {v}")
+            stats_str = ", ".join(stats_parts)
             progress_line += f" | {stats_str}"
 
         # Print with carriage return for in-place update
         print(progress_line, end='\r', flush=True)
 
-    def finish(self, stats: Optional[Dict[str, int]] = None):
+    def finish(self, stats: Optional[Dict[str, Union[int, str]]] = None):
         """
         Mark progress as complete and print final line.
 
@@ -170,7 +176,13 @@ class ProgressBar:
 
         # Add verbose statistics if provided
         if self.verbose and stats:
-            stats_str = ", ".join(f"{k}: {v:,}" for k, v in stats.items())
+            stats_parts = []
+            for k, v in stats.items():
+                if isinstance(v, int):
+                    stats_parts.append(f"{k}: {v:,}")
+                else:
+                    stats_parts.append(f"{k}: {v}")
+            stats_str = ", ".join(stats_parts)
             progress_line += f" | {stats_str}"
 
         # Print with newline to persist
