@@ -32,11 +32,12 @@ Stage 4 relocates organized and deduplicated files from the input folder to the 
 
 ### 5. Classification Support
 - **Phase 1** (Current Implementation): Basic classification included
-  - Move files preserving directory structure
-  - **Top-level files** → moved to `misc/` subfolder in output
-  - Rationale: Top-level files are unorganized, misc folder provides structure
+  - Move subdirectories preserving structure (all subdirs at any level)
+  - **Top-level files ONLY** → moved to `misc/` subfolder in output
+  - **Top-level folders** → moved directly to output (preserve as-is)
+  - Rationale: Top-level files have no organization; top-level folders already have structure
 - **Phase 2** (Future): Advanced classification
-  - Optional grouping by type/date
+  - Optional categorization within misc/ folder or existing folders
   - Configurable classification rules via `.file_organizer.yaml`
 
 ### 6. Performance Priority
@@ -187,13 +188,26 @@ def _create_output_structure(self) -> None:
 def _relocate_files(self) -> List[MovedFile]:
     """Move all files from input to output preserving structure."""
     moved_files = []
+    top_level_files = []
+
+    # Identify top-level files (need to go to misc/)
+    for item in self.input_folder.iterdir():
+        if item.is_file():
+            top_level_files.append(item)
+
+    # Walk all files in input folder
     file_list = list(self._walk_files(self.input_folder))
     total_files = len(file_list)
 
     for idx, file_path in enumerate(file_list, 1):
         # Calculate destination
-        rel_path = file_path.relative_to(self.input_folder)
-        dest_path = self.output_folder / rel_path
+        if file_path in top_level_files:
+            # Top-level file → misc/filename
+            dest_path = self.output_folder / "misc" / file_path.name
+        else:
+            # All other files → preserve relative path
+            rel_path = file_path.relative_to(self.input_folder)
+            dest_path = self.output_folder / rel_path
 
         # Move file (or simulate in dry-run)
         if not self.dry_run:
@@ -545,25 +559,29 @@ relocation:
 ```
 Before:
 /input/
-  ├── documents/work/report.pdf
-  ├── photos/vacation/img.jpg
-  ├── random_file.txt            ← Top-level file
-  └── another.pdf                 ← Top-level file
+  ├── documents/           ← Top-level FOLDER
+  │   └── work/report.pdf
+  ├── photos/              ← Top-level FOLDER
+  │   └── vacation/img.jpg
+  ├── random_file.txt      ← Top-level FILE
+  └── another.pdf          ← Top-level FILE
 
 After:
 /output/
-  ├── documents/work/report.pdf
-  ├── photos/vacation/img.jpg
-  └── misc/                       ← New folder for unorganized files
+  ├── documents/           ← Folder moved directly (preserves structure)
+  │   └── work/report.pdf
+  ├── photos/              ← Folder moved directly (preserves structure)
+  │   └── vacation/img.jpg
+  └── misc/                ← Only for top-level FILES
       ├── random_file.txt
       └── another.pdf
 ```
 
 **Implementation Details**:
-- Detect files in input root directory (no parent subdirectory)
-- Automatically move to `misc/` subfolder in output
-- Preserves existing organization for structured files
-- Provides structure for unorganized top-level files
+- **Top-level FILES**: Moved to `misc/` subfolder in output
+- **Top-level FOLDERS**: Moved directly to output, preserving full structure
+- Rationale: Top-level folders already have organization; only files need structure
+- All nested content (files/folders at any depth) moved with their parent
 - No configuration needed - automatic behavior
 
 ## Future Enhancements (Phase 2)
