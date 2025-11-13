@@ -393,114 +393,120 @@ def create_default_config_file(path: Optional[Path] = None) -> Path:
     """
     if path is None:
         path = Path.cwd() / '.file_organizer.yaml'
-    
-    default_config = """# File Organizer Configuration File
-# Copy this file to .file_organizer.yaml in your execution directory to customize settings
+
+    default_config = """# ============================================================================
+# File Organizer Configuration File
+# ============================================================================
+# Place this file as .file_organizer.yaml in your execution directory
 # CLI flags override these settings (highest priority)
+#
+# Precedence: CLI flags > Config file > Built-in defaults
+# ============================================================================
 
 # ============================================================================
 # EXECUTION MODE
 # ============================================================================
 
 # Default execution mode when --execute flag is not specified
-# Options: 'dry-run' (preview only, no changes) | 'execute' (make changes)
-# Default: 'dry-run'
-# CLI override: --execute flag
 default_mode: dry-run
+# Alternatives:
+# default_mode: execute     # WARNING: Will make actual changes without confirmation
 
 # ============================================================================
 # STAGE 2: FOLDER STRUCTURE OPTIMIZATION
 # ============================================================================
 
 # Folder flattening threshold (number of items)
-# Folders with fewer than this many items will be flattened into parent
-# Valid range: 0-1000 (inclusive)
-# Default: 5
-# CLI override: Not currently available via CLI
+# Folders with this many items or fewer will be flattened into parent
 flatten_threshold: 5
+# Alternatives:
+# flatten_threshold: 0      # Disable flattening
+# flatten_threshold: 3      # More aggressive flattening
+# flatten_threshold: 10     # Less aggressive flattening
+
+# ============================================================================
+# STAGE 3: DUPLICATE DETECTION
+# ============================================================================
+
+# Duplicate detection settings
+duplicate_detection:
+  # Skip image files during duplicate detection
+  # Images are numerous (~60-70% by count) but small (~10% by size)
+  # Often intentionally duplicated (thumbnails, resizes, etc.)
+  skip_images: true
+  # Alternatives:
+  # skip_images: false      # Include images in duplicate detection
+
+  # Minimum file size to process in duplicate detection (bytes)
+  # Files smaller than this are skipped (usually not worth deduplicating)
+  min_file_size: 10240      # 10 KB (default)
+  # Alternatives:
+  # min_file_size: 0        # Process all files regardless of size
+  # min_file_size: 1024     # 1 KB minimum
+  # min_file_size: 51200    # 50 KB minimum
+  # min_file_size: 1048576  # 1 MB minimum
 
 # ============================================================================
 # FILE OPERATIONS
 # ============================================================================
 
 # Preserve original file timestamps during rename/move operations
-# Options: true | false
-# Default: true
-# CLI override: Not currently available via CLI
 preserve_timestamps: true
+# Alternatives:
+# preserve_timestamps: false  # Use current timestamp for modified files
 
 # ============================================================================
 # LOGGING & OUTPUT
 # ============================================================================
 
 # Verbose output (detailed logging to console)
-# Options: true | false
-# Default: false
-# CLI override: --verbose flag
 verbose: false
+# Alternatives:
+# verbose: true             # Show detailed progress and debug information
 
 # Log file location
-# Options: 'cwd' (current working directory) | absolute path to directory
-# Default: 'cwd'
-# CLI override: Not currently available via CLI
 log_location: cwd
+# Alternatives:
+# log_location: /path/to/logs  # Absolute path to log directory
 
 # Maximum number of detailed errors to log (prevents log file explosion)
-# Valid range: 0-100000 (inclusive)
-# Default: 1000
-# CLI override: Not currently available via CLI
 max_errors_logged: 1000
+# Alternatives:
+# max_errors_logged: 0      # Don't log detailed errors
+# max_errors_logged: 100    # Less detailed error logging
+# max_errors_logged: 10000  # More detailed error logging
 
 # ============================================================================
 # PERFORMANCE TUNING (Large Scale Operations)
 # ============================================================================
 
-# Progress update interval
-# Options: 'auto' (adaptive based on file count) | integer (number of files)
-#   - 'auto': Adapts frequency based on total file count
-#   - Integer: Update every N files (e.g., 100, 500, 1000)
-# Default: 'auto'
-# CLI override: Not currently available via CLI
+# Progress update interval for main operations
 progress_update_interval: auto
+# Alternatives:
+# progress_update_interval: 100   # Update every 100 files
+# progress_update_interval: 1000  # Update every 1000 files
 
 # Number of files between scan progress updates
-# Valid range: 1-1000000 (inclusive)
-# Default: 10000
-# CLI override: Not currently available via CLI
 scan_progress_interval: 10000
-
-# ============================================================================
-# STAGE 3: DUPLICATE DETECTION
-# ============================================================================
-
-# Duplicate detection settings (nested under duplicate_detection key)
-duplicate_detection:
-  # Skip image files during duplicate detection
-  # Options: true | false
-  # Default: true
-  # Reason: Images are numerous (~60-70% by count) but small (~10% by size)
-  #         They're often intentionally duplicated (thumbnails, resizes)
-  # CLI override: --skip-images or --no-skip-images
-  skip_images: true
-
-  # Minimum file size to process in duplicate detection (bytes)
-  # Valid range: 0 to 1GB (1073741824 bytes)
-  # Default: 10240 (10KB)
-  # Reason: Files too small are usually not worth deduplicating
-  # CLI override: --min-file-size BYTES
-  min_file_size: 10240
+# Alternatives:
+# scan_progress_interval: 1000   # More frequent updates (noisier)
+# scan_progress_interval: 50000  # Less frequent updates (quieter)
 
 # ============================================================================
 # FUTURE OPTIONS (Not Yet Implemented)
 # ============================================================================
 
-# parallel_processing: false  # Enable parallel processing (future)
-# worker_threads: 8           # Number of worker threads (future)
+# The following options are planned for future releases:
+#
+# parallel_processing: false     # Enable parallel processing
+# worker_threads: 8              # Number of worker threads
+# checksum_algorithm: xxhash     # Hash algorithm (xxhash, sha256, etc.)
+# cache_expiry_days: 30          # Days before cache entries expire
 """
-    
+
     with open(path, 'w') as f:
         f.write(default_config)
-    
+
     print(f"Created default configuration file: {path}")
     return path
 
