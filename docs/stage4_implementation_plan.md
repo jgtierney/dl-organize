@@ -21,20 +21,23 @@ Stage 4 relocates organized and deduplicated files from the input folder to the 
 - Preserves "keep" folder semantics
 
 ### 3. Cleanup Behavior
-- **Default**: Remove input folder after successful move
-- **Optional**: `--preserve-input` flag to keep input folder
-- Input folder only removed if ALL files moved successfully
+- **Default**: Remove files and subdirectories from input, leave empty root folder
+- **Rationale**: Clean up moved files, but preserve input folder structure for future use
+- **Optional**: `--preserve-input` flag to keep input folder with all files
+- Cleanup only runs if moves were successful (no partial cleanup on failures)
 
 ### 4. Automatic Execution
 - **Auto-runs** as part of full pipeline when output folder provided
 - Can also run standalone: `--stage 4`
 
-### 5. Future: Classification Support
-- **Phase 1** (Current): Move files preserving structure
-- **Phase 2** (Future): Optional classification
-  - Move top-level files to `miscellaneous/` subfolder
+### 5. Classification Support
+- **Phase 1** (Current Implementation): Basic classification included
+  - Move files preserving directory structure
+  - **Top-level files** → moved to `misc/` subfolder in output
+  - Rationale: Top-level files are unorganized, misc folder provides structure
+- **Phase 2** (Future): Advanced classification
   - Optional grouping by type/date
-  - Configurable via `.file_organizer.yaml`
+  - Configurable classification rules via `.file_organizer.yaml`
 
 ### 6. Performance Priority
 - Optimize for speed over redundancy
@@ -71,8 +74,9 @@ Phase 4: Verification
   → Validate critical files moved
 
 Phase 5: Cleanup (unless --preserve-input)
-  → Remove empty directories in input
-  → Remove input root folder
+  → Remove files from input folder
+  → Remove empty subdirectories
+  → Keep empty input root folder
   → Report final status
 ```
 
@@ -239,33 +243,45 @@ def _move_file(self, source: Path, dest: Path) -> None:
 #### 4. Verification
 ```python
 def _verify_relocation(self, moved_files: List[MovedFile]) -> None:
-    """Verify all files were moved successfully."""
+    """Verify all files exist in output after move."""
     if self.dry_run:
         return  # Skip verification in dry-run
 
     missing = []
     for moved in moved_files:
+        # Check existence (sufficient since move operation completed)
         if not moved.destination.exists():
             missing.append(moved.destination)
 
     if missing:
-        raise VerificationError(
-            f"Verification failed: {len(missing)} files missing in output"
+        logger.warning(
+            f"Verification incomplete: {len(missing)} files missing in output"
         )
+        # Don't raise - allow partial success
+        return missing
+
+    return []
 ```
 
 #### 5. Cleanup
 ```python
 def _cleanup_input_folder(self) -> None:
-    """Remove input folder after successful move."""
+    """Remove files and subdirs from input, keep empty root folder."""
     try:
-        # Remove input folder recursively
-        shutil.rmtree(self.input_folder)
-        logger.info(f"Removed input folder: {self.input_folder}")
+        # Remove all subdirectories
+        for item in self.input_folder.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+                logger.debug(f"Removed directory: {item}")
+            elif item.is_file():
+                item.unlink()
+                logger.debug(f"Removed file: {item}")
+
+        logger.info(f"Cleaned input folder (kept empty root): {self.input_folder}")
     except Exception as e:
         logger.warning(
-            f"Could not remove input folder: {e}. "
-            f"Files have been moved successfully, but input folder remains."
+            f"Could not fully clean input folder: {e}. "
+            f"Files have been moved successfully."
         )
 ```
 
@@ -362,7 +378,8 @@ Cleanup: Input folder will be removed after move
 ### Phase 5: Cleanup
 ```
 [Phase 5/5] Cleanup
-  ✓ Removed input folder: /path/to/input
+  ✓ Removed all files and subdirectories
+  ✓ Empty input folder preserved: /path/to/input
   ✓ Operation complete
 ```
 
@@ -372,9 +389,11 @@ Cleanup: Input folder will be removed after move
   Stage 4 Complete
 ============================================================
 Files moved: 12,453
+  - Organized files: 12,400
+  - Top-level to misc/: 53
 Data transferred: 50.2 GB
-Directories created: 345
-Input folder: Removed
+Directories created: 346 (includes misc/)
+Input folder: Cleaned (empty root preserved)
 Time taken: 8.3 seconds
 
 ✓ All files relocated successfully
@@ -410,11 +429,17 @@ Consider re-running Stage 3B if seeing multiple collisions
 
 **Partial Failure**:
 ```
-❌ ERROR: Verification failed
-Missing files: 3 / 12,453
-Files may have been moved but could not be verified
-Input folder preserved for safety
-Please investigate before retrying
+⚠️  WARNING: Partial move completed
+Successfully moved: 12,450 / 12,453 files
+Failed to move: 3 files (see log for details)
+Input folder preserved (--preserve-input implied on partial failure)
+
+Failed files:
+  - /input/documents/locked_file.pdf (Permission denied)
+  - /input/photos/corrupted.jpg (I/O error)
+  - /input/videos/in_use.mp4 (Resource busy)
+
+Recommendation: Fix errors and re-run Stage 4 for remaining files
 ```
 
 ## Testing Strategy
@@ -514,9 +539,7 @@ relocation:
     top_level_to_misc: true    # Move top-level files to miscellaneous/
 ```
 
-## Future Enhancements
-
-### Phase 2: Classification Support
+## Basic Classification (Phase 1 - Current Implementation)
 
 **Top-Level File Organization**:
 ```
@@ -531,12 +554,21 @@ After:
 /output/
   ├── documents/work/report.pdf
   ├── photos/vacation/img.jpg
-  └── miscellaneous/              ← New folder
+  └── misc/                       ← New folder for unorganized files
       ├── random_file.txt
       └── another.pdf
 ```
 
-**Optional Grouping**:
+**Implementation Details**:
+- Detect files in input root directory (no parent subdirectory)
+- Automatically move to `misc/` subfolder in output
+- Preserves existing organization for structured files
+- Provides structure for unorganized top-level files
+- No configuration needed - automatic behavior
+
+## Future Enhancements (Phase 2)
+
+**Advanced Classification Options**:
 - By file type: `documents/`, `images/`, `videos/`, `audio/`, `archives/`
 - By date: `2025/01/`, `2025/02/`
 - By size category: `large/`, `medium/`, `small/`
