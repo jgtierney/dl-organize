@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import time
 
 from .hash_cache import HashCache, CachedFile
+from .progress_bar import ProgressBar
 
 
 # File extensions to skip
@@ -63,7 +64,8 @@ class DuplicateDetector:
         cache: HashCache,
         skip_images: bool = True,
         min_file_size: int = MIN_FILE_SIZE,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[callable] = None,
+        verbose: bool = True
     ):
         """
         Initialize duplicate detector.
@@ -73,11 +75,13 @@ class DuplicateDetector:
             skip_images: Skip image files (default True)
             min_file_size: Minimum file size to process in bytes (default 10KB)
             progress_callback: Optional callback for progress updates
+            verbose: Show progress bars (default True)
         """
         self.cache = cache
         self.skip_images = skip_images
         self.min_file_size = min_file_size
         self.progress_callback = progress_callback
+        self.verbose = verbose
 
         # Statistics
         self.stats = {
@@ -337,12 +341,27 @@ class DuplicateDetector:
         hash_groups = {}
         total_to_hash = self.stats['size_collisions']
         hashed_count = 0
+        skipped_count = 0
 
+        # Create progress bar for hashing
+        if total_to_hash > 0:
+            hash_progress = ProgressBar(
+                total=total_to_hash,
+                description="Hashing files",
+                verbose=self.verbose,
+                min_duration=1.0
+            )
+
+        idx = 0
         for size, file_list in collision_groups.items():
             for file_meta in file_list:
+                idx += 1
                 file_hash = self.hash_file_with_cache(file_meta, folder)
 
                 if not file_hash:
+                    skipped_count += 1
+                    if total_to_hash > 0:
+                        hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
                     continue  # Skip files with hash errors
 
                 # Group by hash
@@ -352,13 +371,13 @@ class DuplicateDetector:
 
                 hashed_count += 1
 
-                # Progress update every 100 files
-                if hashed_count % 100 == 0 and self.progress_callback:
-                    percent = (hashed_count / total_to_hash) * 100
-                    self.progress_callback(
-                        'hash', hashed_count, total_to_hash,
-                        f"Hashing: {hashed_count:,} / {total_to_hash:,} ({percent:.1f}%)"
-                    )
+                # Update progress bar
+                if total_to_hash > 0:
+                    hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
+
+        # Finish progress bar
+        if total_to_hash > 0:
+            hash_progress.finish({"Hashed": hashed_count, "Skipped": skipped_count})
 
         # Phase 4: Find duplicates (groups with 2+ files)
         if self.progress_callback:

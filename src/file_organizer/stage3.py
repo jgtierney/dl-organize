@@ -139,7 +139,8 @@ class Stage3:
             cache=self.cache,
             skip_images=self.skip_images,
             min_file_size=self.min_file_size,
-            progress_callback=self._progress_callback
+            progress_callback=self._progress_callback,
+            verbose=self.verbose
         )
 
         duplicate_groups = detector.detect_duplicates(self.input_folder, folder='input')
@@ -252,7 +253,8 @@ class Stage3:
                 cache=self.cache,
                 skip_images=self.skip_images,
                 min_file_size=self.min_file_size,
-                progress_callback=self._progress_callback
+                progress_callback=self._progress_callback,
+                verbose=self.verbose
             )
             detector.detect_duplicates(self.input_folder, folder='input')
             input_files = self.cache.get_all_files('input')
@@ -266,7 +268,8 @@ class Stage3:
             cache=self.cache,
             skip_images=self.skip_images,
             min_file_size=self.min_file_size,
-            progress_callback=self._progress_callback
+            progress_callback=self._progress_callback,
+            verbose=self.verbose
         )
 
         # Scan output folder (metadata-first optimization)
@@ -459,7 +462,8 @@ class Stage3:
                 detector = DuplicateDetector(
                     cache=self.cache,
                     skip_images=self.skip_images,
-                    min_file_size=self.min_file_size
+                    min_file_size=self.min_file_size,
+                    verbose=self.verbose
                 )
                 detector.hash_file_with_cache(file_meta, folder)
                 hashed_count += 1
