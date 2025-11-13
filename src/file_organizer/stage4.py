@@ -127,7 +127,6 @@ class Stage4Processor:
             # Phase 3: Move files
             self._print_phase(3, 5, "Moving Files")
             self._relocate_files()
-            self._print_relocation_summary()
 
             # Phase 4: Verification
             self._print_phase(4, 5, "Verification")
