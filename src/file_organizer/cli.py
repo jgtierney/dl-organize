@@ -235,7 +235,10 @@ def main() -> int:
                     print("\n💡 TIP: Run with --execute to actually delete duplicates")
 
         # Stage 3B: Cross-Folder Deduplication
-        if args.stage == "3b":
+        # Run if explicitly requested OR if run_all and output folder is provided
+        should_run_3b = args.stage == "3b" or (run_all and args.output_folder)
+
+        if should_run_3b:
             # Validate output folder is provided
             if not args.output_folder:
                 print("\n❌ ERROR: Stage 3B requires --output-folder (-of) to be specified")
@@ -243,7 +246,8 @@ def main() -> int:
                 return 1
 
             print("\nStarting Stage 3B: Cross-Folder Deduplication...")
-            print("💡 TIP: Run Stage 3A first to populate input cache for optimal performance")
+            if run_all:
+                print("💡 Output folder detected - running Stage 3B to find cross-folder duplicates")
 
             with Stage3(
                 input_folder=Path(args.input_folder),
