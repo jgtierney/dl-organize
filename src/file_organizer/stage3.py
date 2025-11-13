@@ -427,14 +427,26 @@ class Stage3:
 
         # Hash files that need hashing
         if files_to_hash:
-            self._print(f"\n  Additional hashing needed for {len(files_to_hash)} files with cross-folder size matches...")
+            self._print(f"\n  Phase 2.5/4: Computing file hashes for size collisions")
 
             from .duplicate_detector import FileMetadata
 
-            for file_info, folder in files_to_hash:
+            hash_progress = ProgressBar(
+                total=len(files_to_hash),
+                description="Computing hashes",
+                verbose=self.verbose,
+                min_duration=1.0
+            )
+
+            hashed_count = 0
+            skipped_count = 0
+
+            for idx, (file_info, folder) in enumerate(files_to_hash, 1):
                 # Create FileMetadata object for hashing
                 file_path = Path(file_info.file_path)
                 if not file_path.exists():
+                    skipped_count += 1
+                    hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
                     continue
 
                 file_meta = FileMetadata(
@@ -450,6 +462,11 @@ class Stage3:
                     min_file_size=self.min_file_size
                 )
                 detector.hash_file_with_cache(file_meta, folder)
+                hashed_count += 1
+
+                hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
+
+            hash_progress.finish({"Hashed": hashed_count, "Skipped": skipped_count})
 
             # Reload cached files to get updated hashes
             input_files = self.cache.get_all_files('input')
