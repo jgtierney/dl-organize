@@ -4,7 +4,7 @@ A powerful Python application for systematically organizing and cleaning up larg
 
 ## 🎯 Project Status
 
-**Current Phase**: Stages 1-2-3 Complete (3A & 3B), Stage 4 Planning
+**Current Phase**: All Core Stages Complete (1-2-3A-3B-4), Production Ready
 **Last Updated**: November 13, 2025
 
 | Stage | Name | Status | Documentation |
@@ -13,13 +13,14 @@ A powerful Python application for systematically organizing and cleaning up larg
 | 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stage2_requirements.md) |
 | 3A | Internal Duplicate Detection | ✅ **COMPLETE** - Production Ready | [Details](docs/requirements/stage3_requirements.md) |
 | 3B | Cross-Folder Deduplication | ✅ **COMPLETE** - Production Ready | [Plan](docs/stage3b_implementation_plan.md) |
-| 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
+| 4 | File Relocation | ✅ **COMPLETE** - Production Ready | [Plan](docs/stage4_implementation_plan.md) |
 
 ### 🎉 Recent Achievements
 - ✅ **Stage 1**: Tested on **110,000+ files** with 100% success rate at **25,000-30,000 files/second**
 - ✅ **Stage 2**: Empty folder removal, iterative flattening, full CLI integration
 - ✅ **Stage 3A**: Metadata-first optimization (10x speedup), xxHash integration, SQLite cache with 100% hit rate on second run
 - ✅ **Stage 3B**: Cross-folder deduplication with full resolution policy, 50% performance improvement via cache reuse, comprehensive testing
+- ✅ **Stage 4**: File relocation with automatic classification, instant move operations, input cleanup, full pipeline integration
 
 ## 🚀 What It Does
 
@@ -58,10 +59,14 @@ The File Organizer processes directories through multiple stages:
 - **50% performance improvement** over scanning both folders
 - **Performance**: Instant cache load + output scan only
 
-### Stage 4: File Relocation (Planned)
+### Stage 4: File Relocation
 - Moves organized files from input to output folder
-- Validates disk space availability
-- Optional file classification/grouping
+- Top-level files automatically moved to `misc/` subfolder
+- Top-level folders preserve full directory structure
+- Validates disk space availability (10% safety margin)
+- Default: Clean input folder after successful move (keep empty root)
+- Optional: `--preserve-input` flag to keep input files
+- **Performance**: Instant move on same filesystem (just renames inodes)
 
 ## 💻 System Requirements
 
@@ -110,15 +115,16 @@ python -m src.file_organizer -if /path/to/messy/downloads
 ```
 
 ### Execute All Stages
-Run the complete pipeline (Stages 1-2-3A):
+Run the complete pipeline (Stages 1-2-3A only):
 ```bash
 python -m src.file_organizer -if /path/to/messy/downloads --execute
 ```
 
-With output folder (runs Stages 1-2-3A-3B):
+With output folder (runs full pipeline: 1-2-3A-3B-4):
 ```bash
 python -m src.file_organizer -if /path/to/input -of /path/to/output --execute
 ```
+**Result**: Organized, deduplicated files moved to output. Input folder cleaned (empty root preserved).
 
 ### Run Specific Stages
 ```bash
@@ -133,6 +139,9 @@ python -m src.file_organizer -if /path/to/directory --stage 3a --execute
 
 # Stage 3B (cross-folder - requires output folder)
 python -m src.file_organizer -if /input -of /output --stage 3b --execute
+
+# Stage 4 only (file relocation - requires output folder)
+python -m src.file_organizer -if /input -of /output --stage 4 --execute
 ```
 
 ### Stage 3 Options
@@ -143,6 +152,24 @@ python -m src.file_organizer -if /path --stage 3a --no-skip-images --execute
 # Custom minimum file size (default: 10KB)
 python -m src.file_organizer -if /path --stage 3a --min-file-size 1024 --execute
 ```
+
+### Stage 4 Options
+```bash
+# Preserve input folder after relocation (default: clean input)
+python -m src.file_organizer -if /input -of /output --stage 4 --execute --preserve-input
+
+# Full pipeline with input preservation
+python -m src.file_organizer -if /input -of /output --execute --preserve-input
+```
+
+**Result without --preserve-input**:
+- Files moved to `/output`
+- Top-level files → `/output/misc/`
+- Input folder cleaned (empty root at `/input` preserved)
+
+**Result with --preserve-input**:
+- Files copied to `/output` (technically moved then source kept)
+- Input folder remains unchanged with all files
 
 ## ⚙️ Configuration
 
