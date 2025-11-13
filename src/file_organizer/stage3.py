@@ -364,8 +364,10 @@ class Stage3:
         from collections import defaultdict
 
         # Get all cached files from both folders
+        self._print("  Loading cached file metadata...")
         input_files = self.cache.get_all_files('input')
         output_files = self.cache.get_all_files('output')
+        self._print(f"  ✓ Loaded {len(input_files):,} input files and {len(output_files):,} output files from cache")
 
         # Phase 1: Group by size to find cross-folder size collisions
         self._print("  Phase 1/4: Building size index for cross-folder comparison")
@@ -473,8 +475,10 @@ class Stage3:
             hash_progress.finish({"Hashed": hashed_count, "Skipped": skipped_count})
 
             # Reload cached files to get updated hashes
+            self._print("\n  Reloading cache with updated hashes...")
             input_files = self.cache.get_all_files('input')
             output_files = self.cache.get_all_files('output')
+            self._print(f"  ✓ Cache reloaded ({len(input_files):,} input, {len(output_files):,} output)")
 
         # Phase 3: Group by hash to find duplicates
         self._print("\n  Phase 3/4: Building hash index from cached data")
@@ -507,8 +511,17 @@ class Stage3:
 
         cross_folder_groups = []
 
-        # Use SimpleProgress since we're iterating through dictionary
-        simple_progress = SimpleProgress("Analyzing hash groups", verbose=self.verbose)
+        # Create progress bar for analyzing hash groups
+        if len(hash_groups) > 0:
+            analyze_progress = ProgressBar(
+                total=len(hash_groups),
+                description="Analyzing duplicates",
+                verbose=self.verbose,
+                min_duration=1.0
+            )
+
+        processed_count = 0
+        cross_folder_count = 0
 
         for i, (file_hash, files) in enumerate(hash_groups.items(), 1):
             # Check if this hash has files from both input and output
@@ -525,13 +538,19 @@ class Stage3:
                     files=file_paths
                 )
                 cross_folder_groups.append(group)
+                cross_folder_count += 1
 
-            # Update every 1000 hash groups
-            if i % 1000 == 0:
-                simple_progress.update(i)
+            processed_count += 1
 
-        simple_progress.count = len(hash_groups)
-        simple_progress.finish()
+            # Update progress bar
+            if len(hash_groups) > 0:
+                stats = {"Cross-folder": cross_folder_count, "Single-folder": processed_count - cross_folder_count}
+                analyze_progress.update(i, stats)
+
+        # Finish progress bar
+        if len(hash_groups) > 0:
+            final_stats = {"Cross-folder": cross_folder_count, "Single-folder": processed_count - cross_folder_count}
+            analyze_progress.finish(final_stats)
 
         self._print(f"  ✓ Found {len(cross_folder_groups):,} cross-folder duplicate groups from {len(hash_groups):,} unique hashes")
 
