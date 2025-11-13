@@ -85,28 +85,30 @@ Output: /output/archive/video.mp4 (2024-06-15, depth=3, same depth)
 
 ### Core Implementation (Tasks 2-7)
 - [x] Review Stage 3B requirements and design
-- [ ] Add `run_stage3b()` method to Stage3 class
-- [ ] Load input folder cache (from Stage 3A - no re-scanning)
-- [ ] Scan and hash output folder (build output cache)
-- [ ] Find cross-folder duplicates (match hashes between input/output)
-- [ ] Apply full resolution policy (keep/depth/mtime) for cross-folder dupes
-- [ ] Support deleting from either folder based on resolution policy
+- [x] Add `run_stage3b()` method to Stage3 class
+- [x] Load input folder cache (from Stage 3A - no re-scanning)
+- [x] Scan and hash output folder (build output cache)
+- [x] Find cross-folder duplicates (match hashes between input/output)
+- [x] Apply full resolution policy (keep/depth/mtime) for cross-folder dupes
+- [x] Support deleting from either folder based on resolution policy
 
 ### Progress & Reporting (Tasks 8-10)
-- [ ] Update progress reporting for two-folder workflow
-- [ ] Implement dry-run report for Stage 3B
-- [ ] Implement execute mode for Stage 3B (delete per policy)
+- [x] Update progress reporting for two-folder workflow
+- [x] Implement dry-run report for Stage 3B
+- [x] Implement execute mode for Stage 3B (delete per policy)
 
 ### Testing (Tasks 11-14)
-- [ ] Add Stage 3B test cases
-- [ ] Test Stage 3B with real data (input vs output folders)
-- [ ] Update CLI to wire up Stage 3B execution
-- [ ] Verify output folder requirement validation works
-- [ ] Test full pipeline: Stage 3A → Stage 3B workflow
+- [x] Add Stage 3B test cases
+- [x] Test Stage 3B with real data (input vs output folders)
+- [x] Update CLI to wire up Stage 3B execution
+- [x] Verify output folder requirement validation works
+- [x] Test full pipeline: Stage 3A → Stage 3B workflow
 
 ### Finalization (Tasks 15-16)
-- [ ] Document Stage 3B usage and examples
-- [ ] Commit and push Stage 3B implementation
+- [x] Document Stage 3B usage and examples
+- [x] Commit and push Stage 3B implementation
+
+**Status**: ✅ **ALL TASKS COMPLETE** - Stage 3B is production-ready!
 
 ## Key Implementation Details
 

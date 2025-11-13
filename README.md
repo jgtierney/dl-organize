@@ -4,21 +4,22 @@ A powerful Python application for systematically organizing and cleaning up larg
 
 ## 🎯 Project Status
 
-**Current Phase**: Stages 1-2-3A Complete, Stage 3B In Progress
-**Last Updated**: November 12, 2025
+**Current Phase**: Stages 1-2-3 Complete (3A & 3B), Stage 4 Planning
+**Last Updated**: November 13, 2025
 
 | Stage | Name | Status | Documentation |
 |-------|------|--------|---------------|
 | 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stage1_requirements.md) |
 | 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stage2_requirements.md) |
-| 3A | Internal Duplicate Detection | ✅ **COMPLETE** - Production Ready MVP | [Details](docs/requirements/stage3_requirements.md) |
-| 3B | Cross-Folder Deduplication | 🚧 **IN PROGRESS** - Implementation Plan Complete | [Plan](docs/stage3b_implementation_plan.md) |
+| 3A | Internal Duplicate Detection | ✅ **COMPLETE** - Production Ready | [Details](docs/requirements/stage3_requirements.md) |
+| 3B | Cross-Folder Deduplication | ✅ **COMPLETE** - Production Ready | [Plan](docs/stage3b_implementation_plan.md) |
 | 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
 
 ### 🎉 Recent Achievements
 - ✅ **Stage 1**: Tested on **110,000+ files** with 100% success rate at **25,000-30,000 files/second**
 - ✅ **Stage 2**: Empty folder removal, iterative flattening, full CLI integration
 - ✅ **Stage 3A**: Metadata-first optimization (10x speedup), xxHash integration, SQLite cache with 100% hit rate on second run
+- ✅ **Stage 3B**: Cross-folder deduplication with full resolution policy, 50% performance improvement via cache reuse, comprehensive testing
 
 ## 🚀 What It Does
 
@@ -49,12 +50,13 @@ The File Organizer processes directories through multiple stages:
   - Priority 3: Newest mtime (most recent wins)
 - **Performance**: First run ~60 min for 2TB/100k files, subsequent runs ~5 min (cache hits)
 
-### Stage 3B: Cross-Folder Deduplication (In Progress)
-- Compares input folder against output folder
-- Reuses input cache from Stage 3A (no re-scanning)
-- Applies same three-tier resolution policy
-- Can delete from either folder based on policy
+### Stage 3B: Cross-Folder Deduplication
+- Compares input folder against output folder for duplicates
+- Reuses input cache from Stage 3A (no re-scanning required)
+- Applies same three-tier resolution policy (keep/depth/mtime)
+- Can delete from either folder based on resolution policy
 - **50% performance improvement** over scanning both folders
+- **Performance**: Instant cache load + output scan only
 
 ### Stage 4: File Relocation (Planned)
 - Moves organized files from input to output folder
@@ -111,6 +113,11 @@ python -m src.file_organizer -if /path/to/messy/downloads
 Run the complete pipeline (Stages 1-2-3A):
 ```bash
 python -m src.file_organizer -if /path/to/messy/downloads --execute
+```
+
+With output folder (runs Stages 1-2-3A-3B):
+```bash
+python -m src.file_organizer -if /path/to/input -of /path/to/output --execute
 ```
 
 ### Run Specific Stages
@@ -257,32 +264,32 @@ dl-organize/
 ## 🤝 Contributing
 
 ### Current Focus
-**Stage 3B Implementation** - Cross-folder deduplication with full resolution policy support.
+**Stage 4 Planning** - File relocation from input to output with disk space validation and optional classification.
 
 ### How to Contribute
 1. Read the [Onboarding Guide](docs/onboarding.md)
-2. Review the [Stage 3B Implementation Plan](docs/stage3b_implementation_plan.md)
+2. Review the [Project Phases](docs/project-phases.md) for roadmap
 3. Pick a component to work on
 4. Follow Python best practices (PEP 8)
 5. Write tests for your code
 6. Submit a pull request
 
 ### Development Priorities
-1. **Stage 3B Implementation** (Current Priority)
-   - Cross-folder duplicate detection
-   - Cache reuse optimization
-   - Full resolution policy integration
-   - CLI integration and testing
+1. **Stage 4 Planning & Design** (Current Priority)
+   - File relocation strategy (input → output)
+   - Disk space validation before operations
+   - Optional file classification/grouping
+   - Integration with completed Stages 1-3
 
-2. **Stage 4 Planning** (Next Up)
-   - File relocation strategy
-   - Disk space validation
-   - Optional file classification
+2. **Testing & Optimization** (Ongoing)
+   - Full pipeline integration tests (Stages 1-2-3A-3B)
+   - Performance testing with large datasets (500k+ files)
+   - Edge case coverage and error handling
 
-3. **Testing & Optimization** (Ongoing)
-   - Integration tests for Stage 3B
-   - Performance testing with large datasets
-   - Edge case coverage
+3. **Production Hardening** (Nice to Have)
+   - Logging to file (currently console-only)
+   - Configuration validation
+   - User documentation and tutorials
 
 ## 📋 Design Decisions
 
@@ -339,4 +346,4 @@ less docs/stage1_requirements.md
 
 ---
 
-**Note**: This project is in active development. Stages 1, 2, and 3A are complete and production-ready. Stage 3B (cross-folder deduplication) is currently in progress. Contributions welcome!
+**Note**: This project is in active development. Stages 1, 2, and 3 (3A & 3B) are complete and production-ready. Stage 4 (file relocation) is in planning phase. Contributions welcome!
