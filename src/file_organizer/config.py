@@ -34,7 +34,7 @@ class Config:
             'skip_images': True,
             'min_file_size': 10240  # 10KB
         },
-        'verbose': False
+        'verbose': True
     }
     
     def __init__(self, config_path: Optional[Path] = None):
@@ -335,12 +335,12 @@ class Config:
         Get verbose logging setting.
 
         Returns:
-            Boolean value (default: False)
+            Boolean value (default: True)
         """
         value = self.get('verbose', cli_override)
 
         if value is None:
-            return False
+            return True
 
         # Handle various boolean representations
         if isinstance(value, bool):

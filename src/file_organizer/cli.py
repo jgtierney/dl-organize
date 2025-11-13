@@ -213,9 +213,11 @@ def main() -> int:
         # Stage 1: Filename Detoxification
         if run_all or args.stage == "1":
             print("Starting Stage 1: Filename Detoxification...")
+            verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
             stage1 = Stage1Processor(
                 input_dir=Path(args.input_folder),
-                dry_run=not args.execute
+                dry_run=not args.execute,
+                verbose=verbose
             )
             stage1.process()
 
@@ -225,12 +227,14 @@ def main() -> int:
 
             # Get flatten threshold from config (CLI override if provided)
             flatten_threshold = config.get_flatten_threshold(cli_override=args.flatten_threshold)
+            verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
 
             stage2 = Stage2Processor(
                 input_dir=Path(args.input_folder),
                 dry_run=not args.execute,
                 flatten_threshold=flatten_threshold,
-                config=config
+                config=config,
+                verbose=verbose
             )
             stage2.process()
 
@@ -317,12 +321,13 @@ def main() -> int:
             if run_all:
                 print("💡 Output folder detected - running Stage 4 to relocate files")
 
+            verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
             stage4 = Stage4Processor(
                 input_folder=Path(args.input_folder),
                 output_folder=Path(args.output_folder),
                 preserve_input=args.preserve_input,
                 dry_run=not args.execute,
-                verbose=True
+                verbose=verbose
             )
 
             results = stage4.process()

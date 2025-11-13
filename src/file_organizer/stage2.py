@@ -10,6 +10,7 @@ Implements the complete Stage 2 workflow:
 """
 
 import os
+import sys
 import shutil
 from pathlib import Path
 from typing import List, Dict, Tuple, Set
@@ -22,19 +23,21 @@ from .config import Config
 class Stage2Processor:
     """Stage 2: Folder Structure Optimization."""
     
-    def __init__(self, input_dir: Path, dry_run: bool = True, 
-                 flatten_threshold: int = 5, config: Config = None):
+    def __init__(self, input_dir: Path, dry_run: bool = True,
+                 flatten_threshold: int = 5, config: Config = None, verbose: bool = True):
         """
         Initialize Stage 2 processor.
-        
+
         Args:
             input_dir: Directory to process
             dry_run: If True, preview changes without executing
             flatten_threshold: Number of items below which folders are flattened
             config: Configuration object (optional)
+            verbose: If True, print progress messages
         """
         self.input_dir = input_dir.resolve()
         self.dry_run = dry_run
+        self.verbose = verbose
         self.flatten_threshold = flatten_threshold
         self.config = config or Config()
         self.cleaner = FilenameCleaner()
@@ -61,61 +64,66 @@ class Stage2Processor:
         
         # Operation log (for dry-run preview)
         self.operations: List[Tuple[str, str, str]] = []  # (operation, source, dest)
-        
+
+    def _print(self, message: str = "", end: str = '\n'):
+        """Print message if verbose mode enabled."""
+        if self.verbose:
+            print(message, end=end, flush=True)
+
     def process(self):
         """Main processing entry point."""
         start_time = datetime.now()
-        
-        print("\n" + "=" * 70)
-        print("STAGE 2: FOLDER STRUCTURE OPTIMIZATION")
-        print("=" * 70)
-        print(f"Flatten threshold: < {self.flatten_threshold} items")
-        
+
+        self._print("\n" + "=" * 70)
+        self._print("STAGE 2: FOLDER STRUCTURE OPTIMIZATION")
+        self._print("=" * 70)
+        self._print(f"Flatten threshold: < {self.flatten_threshold} items")
+
         if self.dry_run:
-            print("Mode: DRY-RUN (preview only)")
+            self._print("Mode: DRY-RUN (preview only)")
         else:
-            print("Mode: EXECUTE")
-        
-        print("=" * 70)
-        
+            self._print("Mode: EXECUTE")
+
+        self._print("=" * 70)
+
         # Phase 1: Remove empty folders
-        print("\nPhase 1: Removing empty folders...")
+        self._print("\nPhase 1: Removing empty folders...")
         self._remove_empty_folders()
-        
+
         # Phase 2: Flatten folder chains (iterative)
-        print("\nPhase 2: Flattening folder structure...")
+        self._print("\nPhase 2: Flattening folder structure...")
         self._flatten_folders_iterative()
-        
+
         # Phase 3: Sanitize remaining folder names
-        print("\nPhase 3: Sanitizing folder names...")
+        self._print("\nPhase 3: Sanitizing folder names...")
         self._sanitize_folder_names()
-        
+
         # Phase 4: Show summary
         end_time = datetime.now()
         duration = end_time - start_time
-        
-        print("\n" + "=" * 70)
-        print("STAGE 2 SUMMARY")
-        print("=" * 70)
-        print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
-        print(f"Empty folders removed: {self.stats['empty_removed']:,}")
-        print(f"Folders flattened:    {self.stats['folders_flattened']:,}")
-        print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
-        print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
-        print(f"Flattening passes:    {self.stats['flattening_passes']}")
-        print(f"Errors:               {self.stats['errors']:,}")
-        print(f"Duration:             {duration.total_seconds():.1f}s")
-        
+
+        self._print("\n" + "=" * 70)
+        self._print("STAGE 2 SUMMARY")
+        self._print("=" * 70)
+        self._print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
+        self._print(f"Empty folders removed: {self.stats['empty_removed']:,}")
+        self._print(f"Folders flattened:    {self.stats['folders_flattened']:,}")
+        self._print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
+        self._print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
+        self._print(f"Flattening passes:    {self.stats['flattening_passes']}")
+        self._print(f"Errors:               {self.stats['errors']:,}")
+        self._print(f"Duration:             {duration.total_seconds():.1f}s")
+
         if self.dry_run:
-            print("\n" + "=" * 70)
-            print("DRY-RUN PREVIEW (showing first 20 operations):")
-            print("=" * 70)
+            self._print("\n" + "=" * 70)
+            self._print("DRY-RUN PREVIEW (showing first 20 operations):")
+            self._print("=" * 70)
             for i, (op, src, dest) in enumerate(self.operations[:20]):
-                print(f"{op}: {src}")
+                self._print(f"{op}: {src}")
                 if dest:
-                    print(f"  → {dest}")
+                    self._print(f"  → {dest}")
             if len(self.operations) > 20:
-                print(f"\n... and {len(self.operations) - 20} more operations")
+                self._print(f"\n... and {len(self.operations) - 20} more operations")
     
     def _remove_empty_folders(self):
         """
@@ -158,15 +166,15 @@ class Stage2Processor:
             
             if pass_removed == 0:
                 break  # No more empty folders
-            
+
             removed_count += pass_removed
-            print(f"  Pass {pass_num}: Removed {pass_removed} empty folders")
-        
+            self._print(f"  Pass {pass_num}: Removed {pass_removed} empty folders")
+
         if pass_num >= max_passes:
-            print(f"  WARNING: Reached maximum pass limit ({max_passes})")
-        
+            self._print(f"  WARNING: Reached maximum pass limit ({max_passes})")
+
         self.stats['empty_removed'] = removed_count
-        print(f"  Total empty folders removed: {removed_count}")
+        self._print(f"  Total empty folders removed: {removed_count}")
     
     def _flatten_folders_iterative(self):
         """
@@ -217,16 +225,16 @@ class Stage2Processor:
             
             if pass_flattened == 0:
                 break  # No more flattening possible
-            
+
             total_flattened += pass_flattened
-            print(f"  Pass {pass_num}: Flattened {pass_flattened} folders")
-        
+            self._print(f"  Pass {pass_num}: Flattened {pass_flattened} folders")
+
         if pass_num >= max_passes:
-            print(f"  WARNING: Reached maximum pass limit ({max_passes})")
-        
+            self._print(f"  WARNING: Reached maximum pass limit ({max_passes})")
+
         self.stats['folders_flattened'] = total_flattened
         self.stats['flattening_passes'] = pass_num - 1
-        print(f"  Total folders flattened: {total_flattened} (in {pass_num - 1} passes)")
+        self._print(f"  Total folders flattened: {total_flattened} (in {pass_num - 1} passes)")
     
     def _sanitize_folder_names(self):
         """Sanitize all remaining folder names using Stage 1 rules."""
@@ -261,9 +269,9 @@ class Stage2Processor:
             new_path = parent_dir / new_foldername
             self._rename_folder(folder_path, new_path)
             renamed_count += 1
-        
+
         self.stats['folders_renamed'] = renamed_count
-        print(f"  Folders renamed: {renamed_count}")
+        self._print(f"  Folders renamed: {renamed_count}")
     
     def _scan_folders(self) -> List[Path]:
         """
@@ -284,9 +292,9 @@ class Stage2Processor:
                     if folder_path.exists():  # May have been removed/moved
                         folders.append(folder_path)
         except Exception as e:
-            print(f"  ERROR scanning directory: {e}")
+            self._print(f"  ERROR scanning directory: {e}")
             self.stats['errors'] += 1
-        
+
         return folders
     
     def _is_empty_folder(self, folder_path: Path) -> bool:
@@ -307,9 +315,9 @@ class Stage2Processor:
             # Check contents
             contents = list(folder_path.iterdir())
             return len(contents) == 0
-            
+
         except Exception as e:
-            print(f"  ERROR checking folder {folder_path}: {e}")
+            self._print(f"  ERROR checking folder {folder_path}: {e}")
             self.stats['errors'] += 1
             return False
     
@@ -353,9 +361,9 @@ class Stage2Processor:
                 return True
             
             return False
-            
+
         except Exception as e:
-            print(f"  ERROR checking folder {folder_path}: {e}")
+            self._print(f"  ERROR checking folder {folder_path}: {e}")
             self.stats['errors'] += 1
             return False
     
@@ -392,25 +400,25 @@ class Stage2Processor:
                     try:
                         shutil.move(str(item), str(dest_path))
                     except Exception as e:
-                        print(f"  ERROR moving {item} to {dest_path}: {e}")
+                        self._print(f"  ERROR moving {item} to {dest_path}: {e}")
                         self.stats['errors'] += 1
                         move_failed = True
-                
+
                 # If moves failed, don't try to remove folder
                 if move_failed:
                     return False
-                
+
                 # Remove now-empty folder
                 try:
                     folder_path.rmdir()
                     return True
                 except Exception as e:
-                    print(f"  ERROR removing folder {folder_path}: {e}")
+                    self._print(f"  ERROR removing folder {folder_path}: {e}")
                     self.stats['errors'] += 1
                     return False
-                    
+
         except Exception as e:
-            print(f"  ERROR flattening folder {folder_path}: {e}")
+            self._print(f"  ERROR flattening folder {folder_path}: {e}")
             self.stats['errors'] += 1
             return False
     
@@ -432,7 +440,7 @@ class Stage2Processor:
                 folder_path.rmdir()
                 return True
             except Exception as e:
-                print(f"  ERROR removing folder {folder_path}: {e}")
+                self._print(f"  ERROR removing folder {folder_path}: {e}")
                 self.stats['errors'] += 1
                 return False
     
@@ -458,9 +466,9 @@ class Stage2Processor:
                     shutil.chown(str(new_path), user='nobody', group='users')
                 except (PermissionError, LookupError):
                     pass  # Continue if ownership change fails
-                    
+
             except Exception as e:
-                print(f"  ERROR renaming folder {old_path} to {new_path}: {e}")
+                self._print(f"  ERROR renaming folder {old_path} to {new_path}: {e}")
                 self.stats['errors'] += 1
     
     def _resolve_collision(self, parent_dir: Path, name: str) -> str:

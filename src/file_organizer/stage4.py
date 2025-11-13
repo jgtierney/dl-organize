@@ -21,6 +21,7 @@ Supports:
 
 import os
 import sys
+import time
 import shutil
 import logging
 from pathlib import Path
@@ -212,6 +213,7 @@ class Stage4Processor:
         """
         total_size = 0
         file_count = 0
+        last_update_time = time.time()
 
         for dirpath, dirnames, filenames in os.walk(folder):
             for filename in filenames:
@@ -219,9 +221,27 @@ class Stage4Processor:
                 try:
                     total_size += filepath.stat().st_size
                     file_count += 1
+
+                    # Time-based progress update (every 100 files, max 10 updates/sec)
+                    if file_count % 100 == 0:
+                        current_time = time.time()
+                        if current_time - last_update_time >= 0.1:
+                            self._print(
+                                f"  Calculating: {file_count:,} files, "
+                                f"{self._format_size(total_size)}...",
+                                end='\r'
+                            )
+                            last_update_time = current_time
                 except (OSError, FileNotFoundError):
                     # Skip files we can't access
                     continue
+
+        # Clear progress line and show final count
+        if file_count > 0:
+            self._print(
+                f"  Calculated: {file_count:,} files, "
+                f"{self._format_size(total_size)}        "
+            )
 
         return total_size, file_count
 

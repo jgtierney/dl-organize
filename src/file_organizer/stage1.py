@@ -12,6 +12,8 @@ Implements the complete Stage 1 workflow:
 """
 
 import os
+import sys
+import time
 import shutil
 from pathlib import Path
 from typing import List, Dict, Tuple, Set
@@ -23,16 +25,18 @@ from .filename_cleaner import FilenameCleaner
 class Stage1Processor:
     """Stage 1: Filename Detoxification."""
     
-    def __init__(self, input_dir: Path, dry_run: bool = True):
+    def __init__(self, input_dir: Path, dry_run: bool = True, verbose: bool = True):
         """
         Initialize Stage 1 processor.
-        
+
         Args:
             input_dir: Directory to process
             dry_run: If True, preview changes without executing
+            verbose: If True, print progress messages
         """
         self.input_dir = input_dir.resolve()
         self.dry_run = dry_run
+        self.verbose = verbose
         self.cleaner = FilenameCleaner()
         
         # Statistics
@@ -53,101 +57,120 @@ class Stage1Processor:
         
         # Operation log (for dry-run preview)
         self.operations: List[Tuple[str, str, str]] = []  # (operation, source, dest)
-        
+
+    def _print(self, message: str = "", end: str = '\n'):
+        """Print message if verbose mode enabled."""
+        if self.verbose:
+            print(message, end=end, flush=True)
+
     def process(self):
         """Main processing entry point."""
         start_time = datetime.now()
-        
+
         # Phase 1: Scan directory tree
-        print("Phase 1: Scanning directory tree...")
+        self._print("Phase 1: Scanning directory tree...")
         files, folders = self._scan_directory()
-        
-        print(f"Found: {len(files):,} files, {len(folders):,} folders")
+
+        self._print(f"Found: {len(files):,} files, {len(folders):,} folders")
         self.stats['files_scanned'] = len(files)
         self.stats['folders_scanned'] = len(folders)
-        
+
         if self.dry_run:
-            print("\n⚠️  DRY-RUN MODE: No changes will be made\n")
-        
+            self._print("\n⚠️  DRY-RUN MODE: No changes will be made\n")
+
         # Phase 2: Process files (bottom-up, so we process files before their parent folders)
-        print("\nPhase 2: Processing files...")
+        self._print("\nPhase 2: Processing files...")
         self._process_files(files)
-        
+
         # Phase 3: Process folders (bottom-up)
-        print("\nPhase 3: Processing folders...")
+        self._print("\nPhase 3: Processing folders...")
         self._process_folders(folders)
-        
+
         # Phase 4: Show summary
         end_time = datetime.now()
         duration = end_time - start_time
-        
-        print("\n" + "=" * 70)
-        print("STAGE 1 SUMMARY")
-        print("=" * 70)
-        print(f"Files scanned:        {self.stats['files_scanned']:,}")
-        print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
-        print(f"Files renamed:        {self.stats['files_renamed']:,}")
-        print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
-        print(f"Hidden files deleted: {self.stats['hidden_deleted']:,}")
-        print(f"Symlinks removed:     {self.stats['symlinks_removed']:,}")
-        print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
-        print(f"Errors:               {self.stats['errors']:,}")
-        print(f"Duration:             {duration.total_seconds():.1f}s")
-        
+
+        self._print("\n" + "=" * 70)
+        self._print("STAGE 1 SUMMARY")
+        self._print("=" * 70)
+        self._print(f"Files scanned:        {self.stats['files_scanned']:,}")
+        self._print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
+        self._print(f"Files renamed:        {self.stats['files_renamed']:,}")
+        self._print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
+        self._print(f"Hidden files deleted: {self.stats['hidden_deleted']:,}")
+        self._print(f"Symlinks removed:     {self.stats['symlinks_removed']:,}")
+        self._print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
+        self._print(f"Errors:               {self.stats['errors']:,}")
+        self._print(f"Duration:             {duration.total_seconds():.1f}s")
+
         if self.dry_run:
-            print("\n" + "=" * 70)
-            print("DRY-RUN PREVIEW (showing first 20 operations):")
-            print("=" * 70)
+            self._print("\n" + "=" * 70)
+            self._print("DRY-RUN PREVIEW (showing first 20 operations):")
+            self._print("=" * 70)
             for i, (op, src, dest) in enumerate(self.operations[:20]):
-                print(f"{op}: {src}")
+                self._print(f"{op}: {src}")
                 if dest:
-                    print(f"  → {dest}")
+                    self._print(f"  → {dest}")
             if len(self.operations) > 20:
-                print(f"\n... and {len(self.operations) - 20} more operations")
+                self._print(f"\n... and {len(self.operations) - 20} more operations")
         
     def _scan_directory(self) -> Tuple[List[Path], List[Path]]:
         """
         Scan directory tree and collect files and folders.
-        
+
         Returns:
             Tuple of (files, folders) sorted bottom-up for processing
         """
         files = []
         folders = []
-        
+        scanned_count = 0
+        last_update_time = time.time()
+
         for root, dirs, filenames in os.walk(self.input_dir, topdown=False):
             root_path = Path(root)
-            
+
             # Collect files
             for filename in filenames:
                 file_path = root_path / filename
                 files.append(file_path)
-            
+                scanned_count += 1
+
+                # Time-based progress update (every 100 files, max 10 updates/sec)
+                if scanned_count % 100 == 0:
+                    current_time = time.time()
+                    if current_time - last_update_time >= 0.1:
+                        self._print(f"  Scanned {scanned_count:,} items...", end='\r')
+                        last_update_time = current_time
+
             # Collect folders (excluding root)
             for dirname in dirs:
                 folder_path = root_path / dirname
                 folders.append(folder_path)
-        
+
+        # Clear progress line with final count
+        if scanned_count > 0:
+            self._print(f"  Scanned {scanned_count:,} items - complete" + " " * 20)
+
         return files, folders
     
     def _process_files(self, files: List[Path]):
         """Process all files."""
         total = len(files)
         update_interval = self._calculate_update_interval(total)
-        
+
         for i, file_path in enumerate(files):
             # Progress update
             if (i + 1) % update_interval == 0 or i == total - 1:
                 progress = (i + 1) / total * 100
-                print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
-            
+                self._print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
+
             try:
                 self._process_single_file(file_path)
             except Exception as e:
                 self.stats['errors'] += 1
-                print(f"\n  ERROR: {file_path}: {e}")
-        
-        print(f"  Processing: {total:,}/{total:,} (100.0%)")  # Final progress
+                self._print(f"\n  ERROR: {file_path}: {e}")
+
+        self._print(f"  Processing: {total:,}/{total:,} (100.0%)")  # Final progress
     
     def _process_single_file(self, file_path: Path):
         """Process a single file."""
@@ -181,20 +204,20 @@ class Stage1Processor:
     def _process_folders(self, folders: List[Path]):
         """Process all folders."""
         total = len(folders)
-        
+
         for i, folder_path in enumerate(folders):
             # Progress update
             if (i + 1) % 10 == 0 or i == total - 1:
                 progress = (i + 1) / total * 100
-                print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
-            
+                self._print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
+
             try:
                 self._process_single_folder(folder_path)
             except Exception as e:
                 self.stats['errors'] += 1
-                print(f"\n  ERROR: {folder_path}: {e}")
-        
-        print(f"  Processing: {total:,}/{total:,} (100.0%)")
+                self._print(f"\n  ERROR: {folder_path}: {e}")
+
+        self._print(f"  Processing: {total:,}/{total:,} (100.0%)")
     
     def _process_single_folder(self, folder_path: Path):
         """Process a single folder."""

@@ -16,6 +16,7 @@ Supports:
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Optional, List, Dict
 from dataclasses import dataclass
@@ -363,19 +364,38 @@ class Stage3:
         output_files = self.cache.get_all_files('output')
 
         # Phase 1: Group by size to find cross-folder size collisions
+        self._print("  Phase 1/4: Building size index for cross-folder comparison...")
         size_groups = defaultdict(lambda: {'input': [], 'output': []})
+        last_update_time = time.time()
 
-        for file_info in input_files:
+        # Process input files
+        for i, file_info in enumerate(input_files, 1):
             size_groups[file_info.file_size]['input'].append(file_info)
+            # Time-based progress update (every 100 files, max 10 updates/sec)
+            if i % 100 == 0:
+                current_time = time.time()
+                if current_time - last_update_time >= 0.1:
+                    self._print_progress(f"Indexing input files: {i:,} / {len(input_files):,}")
+                    last_update_time = current_time
 
-        for file_info in output_files:
+        # Process output files
+        for i, file_info in enumerate(output_files, 1):
             size_groups[file_info.file_size]['output'].append(file_info)
+            # Time-based progress update (every 100 files, max 10 updates/sec)
+            if i % 100 == 0:
+                current_time = time.time()
+                if current_time - last_update_time >= 0.1:
+                    self._print_progress(f"Indexing output files: {i:,} / {len(output_files):,}")
+                    last_update_time = current_time
+
+        self._print_result(f"Indexed {len(input_files):,} input + {len(output_files):,} output files")
 
         # Phase 2: Identify cross-folder size collisions (need hashing)
-        # Hash all files that have matching sizes across folders
+        self._print("  Phase 2/4: Identifying files that need hashing...")
         files_to_hash = []
+        last_update_time = time.time()
 
-        for size, folders in size_groups.items():
+        for i, (size, folders) in enumerate(size_groups.items(), 1):
             if folders['input'] and folders['output']:
                 # This size exists in both folders - need to hash all files of this size
                 for file_info in folders['input']:
@@ -385,6 +405,18 @@ class Stage3:
                 for file_info in folders['output']:
                     if not file_info.file_hash:
                         files_to_hash.append((file_info, 'output'))
+
+            # Time-based progress update (every 1000 groups, max 10 updates/sec)
+            if i % 1000 == 0:
+                current_time = time.time()
+                if current_time - last_update_time >= 0.1:
+                    self._print_progress(f"Analyzed {i:,} / {len(size_groups):,} size groups")
+                    last_update_time = current_time
+
+        if files_to_hash:
+            self._print_result(f"Found {len(files_to_hash):,} files needing hash calculation")
+        else:
+            self._print_result(f"Analyzed {len(size_groups):,} size groups - all files already hashed")
 
         # Hash files that need hashing
         if files_to_hash:
@@ -417,17 +449,31 @@ class Stage3:
             output_files = self.cache.get_all_files('output')
 
         # Phase 3: Group by hash to find duplicates
+        self._print("  Phase 3/4: Building hash index from cached data...")
         hash_groups = defaultdict(list)
+        all_files = input_files + output_files
+        last_update_time = time.time()
 
-        for file_info in input_files + output_files:
+        for i, file_info in enumerate(all_files, 1):
             file_hash = file_info.file_hash
             if file_hash:
                 hash_groups[file_hash].append(file_info)
 
-        # Phase 4: Find groups that have files from BOTH folders
-        cross_folder_groups = []
+            # Time-based progress update (every 100 files, max 10 updates/sec)
+            if i % 100 == 0:
+                current_time = time.time()
+                if current_time - last_update_time >= 0.1:
+                    self._print_progress(f"Indexing hashes: {i:,} / {len(all_files):,}")
+                    last_update_time = current_time
 
-        for file_hash, files in hash_groups.items():
+        self._print_result(f"Indexed {len(all_files):,} files by hash")
+
+        # Phase 4: Find groups that have files from BOTH folders
+        self._print("  Phase 4/4: Finding cross-folder duplicates...")
+        cross_folder_groups = []
+        last_update_time = time.time()
+
+        for i, (file_hash, files) in enumerate(hash_groups.items(), 1):
             # Check if this hash has files from both input and output
             folders = {f.folder for f in files}
 
@@ -442,6 +488,15 @@ class Stage3:
                     files=file_paths
                 )
                 cross_folder_groups.append(group)
+
+            # Time-based progress update (every 1000 hash groups, max 10 updates/sec)
+            if i % 1000 == 0:
+                current_time = time.time()
+                if current_time - last_update_time >= 0.1:
+                    self._print_progress(f"Analyzing hashes: {i:,} / {len(hash_groups):,}")
+                    last_update_time = current_time
+
+        self._print_result(f"Analyzed {len(hash_groups):,} unique hashes, found {len(cross_folder_groups):,} cross-folder duplicate groups")
 
         return cross_folder_groups
 

@@ -64,7 +64,7 @@ preserve_timestamps: true
 # ============================================================================
 
 # Verbose output (detailed logging to console)
-verbose: false
+verbose: true
 # Alternatives:
 # verbose: true             # Show detailed progress and debug information
 
