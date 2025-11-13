@@ -270,7 +270,7 @@ class Stage2Processor:
             total=len(folders_to_process),
             description="Sanitizing Folders",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         # Process bottom-up to avoid path issues

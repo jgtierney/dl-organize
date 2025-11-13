@@ -313,7 +313,7 @@ class Stage4Processor:
             total=total_files,
             description="Moving Files",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         for idx, file_path in enumerate(file_list, 1):
@@ -429,7 +429,7 @@ class Stage4Processor:
                 total=total_items,
                 description="Cleaning Input",
                 verbose=self.verbose,
-                min_duration=5.0
+                min_duration=1.0
             )
 
             dirs_removed = 0

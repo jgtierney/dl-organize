@@ -163,7 +163,7 @@ class Stage1Processor:
             total=total,
             description="Processing Files",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         for i, file_path in enumerate(files):
@@ -244,7 +244,7 @@ class Stage1Processor:
             total=total,
             description="Processing Folders",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         for i, folder_path in enumerate(folders):

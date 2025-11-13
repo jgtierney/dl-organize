@@ -374,7 +374,7 @@ class Stage3:
             total=total_files,
             description="Building size index",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         # Process input files
@@ -465,7 +465,7 @@ class Stage3:
             total=len(all_files),
             description="Building hash index",
             verbose=self.verbose,
-            min_duration=5.0
+            min_duration=1.0
         )
 
         hashed_count = 0
