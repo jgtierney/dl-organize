@@ -241,6 +241,8 @@ class Stage3:
 
         # Phase 1: Load input cache (instant - reuse from Stage 3A)
         self._print_phase(1, 5, "Loading Input Cache (from Stage 3A)")
+        self._print("  Loading input file metadata from cache...")
+        sys.stdout.flush()
 
         input_files = self.cache.get_all_files('input')
 
