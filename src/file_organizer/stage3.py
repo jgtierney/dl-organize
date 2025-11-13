@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from .hash_cache import HashCache
 from .duplicate_detector import DuplicateDetector, DuplicateGroup
 from .duplicate_resolver import DuplicateResolver
+from .progress_bar import ProgressBar, SimpleProgress
 
 
 @dataclass
@@ -364,39 +365,45 @@ class Stage3:
         output_files = self.cache.get_all_files('output')
 
         # Phase 1: Group by size to find cross-folder size collisions
-        self._print("  Phase 1/4: Building size index for cross-folder comparison...")
+        self._print("  Phase 1/4: Building size index for cross-folder comparison")
+
         size_groups = defaultdict(lambda: {'input': [], 'output': []})
-        last_update_time = time.time()
+        total_files = len(input_files) + len(output_files)
+
+        progress = ProgressBar(
+            total=total_files,
+            description="Building size index",
+            verbose=self.verbose,
+            min_duration=5.0
+        )
 
         # Process input files
         for i, file_info in enumerate(input_files, 1):
             size_groups[file_info.file_size]['input'].append(file_info)
-            # Time-based progress update (every 100 files, max 10 updates/sec)
-            if i % 100 == 0:
-                current_time = time.time()
-                if current_time - last_update_time >= 0.1:
-                    self._print_progress(f"Indexing input files: {i:,} / {len(input_files):,}")
-                    last_update_time = current_time
+            stats = {"Input": i, "Output": 0}
+            progress.update(i, stats)
 
         # Process output files
         for i, file_info in enumerate(output_files, 1):
             size_groups[file_info.file_size]['output'].append(file_info)
-            # Time-based progress update (every 100 files, max 10 updates/sec)
-            if i % 100 == 0:
-                current_time = time.time()
-                if current_time - last_update_time >= 0.1:
-                    self._print_progress(f"Indexing output files: {i:,} / {len(output_files):,}")
-                    last_update_time = current_time
+            stats = {"Input": len(input_files), "Output": i}
+            progress.update(len(input_files) + i, stats)
 
-        self._print_result(f"Indexed {len(input_files):,} input + {len(output_files):,} output files")
+        final_stats = {"Input": len(input_files), "Output": len(output_files)}
+        progress.finish(final_stats)
 
         # Phase 2: Identify cross-folder size collisions (need hashing)
-        self._print("  Phase 2/4: Identifying files that need hashing...")
+        self._print("\n  Phase 2/4: Identifying files that need hashing")
+
         files_to_hash = []
-        last_update_time = time.time()
+        collision_count = 0
+
+        # Use SimpleProgress since we don't know total in advance
+        simple_progress = SimpleProgress("Analyzing size groups", verbose=self.verbose)
 
         for i, (size, folders) in enumerate(size_groups.items(), 1):
             if folders['input'] and folders['output']:
+                collision_count += 1
                 # This size exists in both folders - need to hash all files of this size
                 for file_info in folders['input']:
                     if not file_info.file_hash:
@@ -406,17 +413,17 @@ class Stage3:
                     if not file_info.file_hash:
                         files_to_hash.append((file_info, 'output'))
 
-            # Time-based progress update (every 1000 groups, max 10 updates/sec)
+            # Update every 1000 groups
             if i % 1000 == 0:
-                current_time = time.time()
-                if current_time - last_update_time >= 0.1:
-                    self._print_progress(f"Analyzed {i:,} / {len(size_groups):,} size groups")
-                    last_update_time = current_time
+                simple_progress.update(i)
+
+        simple_progress.count = len(size_groups)
+        simple_progress.finish()
 
         if files_to_hash:
-            self._print_result(f"Found {len(files_to_hash):,} files needing hash calculation")
+            self._print(f"  ✓ Found {collision_count:,} size collisions, {len(files_to_hash):,} files need hashing")
         else:
-            self._print_result(f"Analyzed {len(size_groups):,} size groups - all files already hashed")
+            self._print(f"  ✓ All {len(size_groups):,} size groups analyzed - files already hashed")
 
         # Hash files that need hashing
         if files_to_hash:
@@ -449,29 +456,38 @@ class Stage3:
             output_files = self.cache.get_all_files('output')
 
         # Phase 3: Group by hash to find duplicates
-        self._print("  Phase 3/4: Building hash index from cached data...")
+        self._print("\n  Phase 3/4: Building hash index from cached data")
+
         hash_groups = defaultdict(list)
         all_files = input_files + output_files
-        last_update_time = time.time()
 
+        progress = ProgressBar(
+            total=len(all_files),
+            description="Building hash index",
+            verbose=self.verbose,
+            min_duration=5.0
+        )
+
+        hashed_count = 0
         for i, file_info in enumerate(all_files, 1):
             file_hash = file_info.file_hash
             if file_hash:
                 hash_groups[file_hash].append(file_info)
+                hashed_count += 1
 
-            # Time-based progress update (every 100 files, max 10 updates/sec)
-            if i % 100 == 0:
-                current_time = time.time()
-                if current_time - last_update_time >= 0.1:
-                    self._print_progress(f"Indexing hashes: {i:,} / {len(all_files):,}")
-                    last_update_time = current_time
+            stats = {"Hashed": hashed_count}
+            progress.update(i, stats)
 
-        self._print_result(f"Indexed {len(all_files):,} files by hash")
+        final_stats = {"Hashed": hashed_count}
+        progress.finish(final_stats)
 
         # Phase 4: Find groups that have files from BOTH folders
-        self._print("  Phase 4/4: Finding cross-folder duplicates...")
+        self._print("\n  Phase 4/4: Finding cross-folder duplicates")
+
         cross_folder_groups = []
-        last_update_time = time.time()
+
+        # Use SimpleProgress since we're iterating through dictionary
+        simple_progress = SimpleProgress("Analyzing hash groups", verbose=self.verbose)
 
         for i, (file_hash, files) in enumerate(hash_groups.items(), 1):
             # Check if this hash has files from both input and output
@@ -489,14 +505,14 @@ class Stage3:
                 )
                 cross_folder_groups.append(group)
 
-            # Time-based progress update (every 1000 hash groups, max 10 updates/sec)
+            # Update every 1000 hash groups
             if i % 1000 == 0:
-                current_time = time.time()
-                if current_time - last_update_time >= 0.1:
-                    self._print_progress(f"Analyzing hashes: {i:,} / {len(hash_groups):,}")
-                    last_update_time = current_time
+                simple_progress.update(i)
 
-        self._print_result(f"Analyzed {len(hash_groups):,} unique hashes, found {len(cross_folder_groups):,} cross-folder duplicate groups")
+        simple_progress.count = len(hash_groups)
+        simple_progress.finish()
+
+        self._print(f"  ✓ Found {len(cross_folder_groups):,} cross-folder duplicate groups from {len(hash_groups):,} unique hashes")
 
         return cross_folder_groups
 

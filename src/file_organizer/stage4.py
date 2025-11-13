@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
+from .progress_bar import ProgressBar, SimpleProgress
+
 logger = logging.getLogger(__name__)
 
 
@@ -213,7 +215,8 @@ class Stage4Processor:
         """
         total_size = 0
         file_count = 0
-        last_update_time = time.time()
+
+        progress = SimpleProgress("Calculating size", verbose=self.verbose)
 
         for dirpath, dirnames, filenames in os.walk(folder):
             for filename in filenames:
@@ -222,26 +225,18 @@ class Stage4Processor:
                     total_size += filepath.stat().st_size
                     file_count += 1
 
-                    # Time-based progress update (every 100 files, max 10 updates/sec)
+                    # Update every 100 files
                     if file_count % 100 == 0:
-                        current_time = time.time()
-                        if current_time - last_update_time >= 0.1:
-                            self._print(
-                                f"  Calculating: {file_count:,} files, "
-                                f"{self._format_size(total_size)}...",
-                                end='\r'
-                            )
-                            last_update_time = current_time
+                        progress.update(file_count)
                 except (OSError, FileNotFoundError):
                     # Skip files we can't access
                     continue
 
-        # Clear progress line and show final count
-        if file_count > 0:
-            self._print(
-                f"  Calculated: {file_count:,} files, "
-                f"{self._format_size(total_size)}        "
-            )
+        progress.count = file_count
+        progress.finish()
+
+        if self.verbose:
+            self._print(f"  ✓ Calculated: {file_count:,} files, {self._format_size(total_size)}")
 
         return total_size, file_count
 
@@ -311,6 +306,17 @@ class Stage4Processor:
 
         total_files = len(file_list)
 
+        if total_files == 0:
+            self._print(f"  ✓ No files to move")
+            return
+
+        progress = ProgressBar(
+            total=total_files,
+            description="Moving Files",
+            verbose=self.verbose,
+            min_duration=5.0
+        )
+
         for idx, file_path in enumerate(file_list, 1):
             # Calculate destination
             if file_path in top_level_files:
@@ -339,9 +345,23 @@ class Stage4Processor:
                 self.failed_files.append((file_path, error_msg))
                 logger.error(f"Failed to move {file_path}: {error_msg}")
 
-            # Update progress every 100 files or at end
-            if idx % 100 == 0 or idx == total_files:
-                self._print_progress(idx, total_files)
+            # Update progress with stats
+            moved_size = sum(mf.size for mf in self.moved_files)
+            stats = {
+                "Moved": len(self.moved_files),
+                "To misc": self.top_level_file_count,
+                "Size": self._format_size(moved_size)
+            }
+            progress.update(idx, stats)
+
+        # Finish progress
+        final_moved_size = sum(mf.size for mf in self.moved_files)
+        final_stats = {
+            "Moved": len(self.moved_files),
+            "To misc": self.top_level_file_count,
+            "Size": self._format_size(final_moved_size)
+        }
+        progress.finish(final_stats)
 
     def _move_file(self, source: Path, dest: Path) -> None:
         """
@@ -398,14 +418,46 @@ class Stage4Processor:
     def _cleanup_input_folder(self) -> None:
         """Remove files and subdirs from input, keep empty root folder."""
         try:
+            # Count items to remove
+            items = list(self.input_folder.iterdir())
+            total_items = len(items)
+
+            if total_items == 0:
+                self._print(f"  ✓ Input folder already empty")
+                return
+
+            progress = ProgressBar(
+                total=total_items,
+                description="Cleaning Input",
+                verbose=self.verbose,
+                min_duration=5.0
+            )
+
+            dirs_removed = 0
+            files_removed = 0
+
             # Remove all subdirectories and files
-            for item in self.input_folder.iterdir():
+            for i, item in enumerate(items, 1):
                 if item.is_dir():
                     shutil.rmtree(item)
+                    dirs_removed += 1
                     logger.debug(f"Removed directory: {item}")
                 elif item.is_file():
                     item.unlink()
+                    files_removed += 1
                     logger.debug(f"Removed file: {item}")
+
+                stats = {
+                    "Folders": dirs_removed,
+                    "Files": files_removed
+                }
+                progress.update(i, stats)
+
+            final_stats = {
+                "Folders": dirs_removed,
+                "Files": files_removed
+            }
+            progress.finish(final_stats)
 
             logger.info(f"Cleaned input folder (kept empty root): {self.input_folder}")
         except Exception as e:
@@ -443,22 +495,6 @@ class Stage4Processor:
         self._print(f"  ✓ Sufficient space with 10% margin")
         self._print()
 
-    def _print_progress(self, current: int, total: int) -> None:
-        """Print progress update."""
-        percentage = (current / total * 100) if total > 0 else 0
-        moved_size = sum(mf.size for mf in self.moved_files)
-        self._print(f"  Progress: {current:,} / {total:,} files ({percentage:.1f}%) - {self._format_size(moved_size)} moved", end='\r')
-
-        if current == total:
-            self._print()  # New line at end
-
-    def _print_relocation_summary(self) -> None:
-        """Print relocation summary."""
-        if self.failed_files:
-            self._print(f"  ⚠️  Moved {len(self.moved_files):,} files ({len(self.failed_files)} failed)")
-        else:
-            self._print(f"  ✓ Moved {len(self.moved_files):,} files successfully")
-        self._print()
 
     def _print_final_summary(self, total_size: int, input_cleaned: bool) -> None:
         """Print final summary."""
