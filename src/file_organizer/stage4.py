@@ -128,12 +128,16 @@ class Stage4Processor:
 
             # Phase 4: Verification
             self._print_phase(4, 5, "Verification")
-            missing = self._verify_relocation()
-            if missing:
-                self._print(f"  ⚠️  Warning: {len(missing)} files missing in output")
+
+            if self.dry_run:
+                self._print("  ⊘ Verification skipped (dry-run mode)")
             else:
-                self._print(f"  ✓ Verified: {len(self.moved_files)} / {len(self.moved_files)} files exist in output")
-                self._print("  ✓ All files moved successfully")
+                missing = self._verify_relocation()
+                if missing:
+                    self._print(f"  ⚠️  Warning: {len(missing)} files missing in output")
+                else:
+                    self._print(f"  ✓ Verified all {len(self.moved_files):,} moved files exist in output")
+                    self._print("  ✓ All files relocated successfully")
 
             # Phase 5: Cleanup (unless --preserve-input)
             input_cleaned = False
@@ -144,6 +148,9 @@ class Stage4Processor:
                 self._print(f"  ✓ Removed all files and subdirectories")
                 self._print(f"  ✓ Empty input folder preserved: {self.input_folder}")
                 self._print("  ✓ Operation complete")
+            elif self.dry_run:
+                self._print_phase(5, 5, "Cleanup")
+                self._print("  ⊘ Skipped (dry-run mode)")
             elif self.preserve_input:
                 self._print_phase(5, 5, "Cleanup")
                 self._print("  ⊘ Skipped (--preserve-input flag)")
