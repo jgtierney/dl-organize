@@ -237,12 +237,12 @@ class DuplicateDetector:
         # Check cache first
         cached = self.cache.get_from_cache(file_meta.path, folder)
 
-        if cached and cached.file_size == file_meta.size and cached.file_mtime == file_meta.mtime:
-            # Cache hit - file unchanged
+        if cached and cached.file_size == file_meta.size and cached.file_mtime == file_meta.mtime and cached.file_hash:
+            # Cache hit - file unchanged and has hash
             self.stats['cache_hits'] += 1
             return cached.file_hash
 
-        # Cache miss - compute hash
+        # Cache miss or no hash - compute hash
         file_hash = self.compute_file_hash(file_meta.path)
 
         if not file_hash:
@@ -290,6 +290,22 @@ class DuplicateDetector:
 
         if not files:
             return []
+
+        # Cache all scanned files (even without hashes) for Stage 3B
+        # This ensures the cache is complete for cross-folder deduplication
+        for file_meta in files:
+            # Check if already in cache
+            cached = self.cache.get_from_cache(file_meta.path, folder)
+            if not cached or cached.file_size != file_meta.size or cached.file_mtime != file_meta.mtime:
+                # Not in cache or file changed - add/update metadata (without hash yet)
+                self.cache.save_to_cache(
+                    file_path=file_meta.path,
+                    folder=folder,
+                    file_size=file_meta.size,
+                    file_mtime=file_meta.mtime,
+                    file_hash=None,  # No hash yet - will be computed if needed
+                    hash_type=None
+                )
 
         # Phase 2: Group by size
         if self.progress_callback:

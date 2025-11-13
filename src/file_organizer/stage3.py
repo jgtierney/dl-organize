@@ -208,6 +208,243 @@ class Stage3:
             dry_run=self.dry_run
         )
 
+    def run_stage3b(self) -> Stage3Results:
+        """
+        Run Stage 3B: Cross-folder deduplication (input vs output).
+
+        Optimized workflow:
+        1. Load input cache (from Stage 3A - no re-scanning!)
+        2. Scan output folder only
+        3. Find cross-folder duplicates
+        4. Apply full resolution policy (can delete from either folder)
+        5. Execute deletions
+
+        Requires:
+            - output_folder must be set
+            - Input cache should exist from Stage 3A (best practice)
+
+        Returns:
+            Stage3Results with execution summary
+        """
+        # Validate output folder
+        if not self.output_folder:
+            raise ValueError("Stage 3B requires output_folder to be set")
+
+        self._print_header("Stage 3B: Cross-Folder Deduplication")
+        self._print(f"Input folder:  {self.input_folder}")
+        self._print(f"Output folder: {self.output_folder}")
+        self._print(f"Mode: {'DRY-RUN (no deletions)' if self.dry_run else 'EXECUTE (will delete duplicates)'}")
+        self._print(f"Settings: skip_images={self.skip_images}, min_size={self.min_file_size:,} bytes")
+
+        # Phase 1: Load input cache (instant - reuse from Stage 3A)
+        self._print_phase(1, 5, "Loading Input Cache (from Stage 3A)")
+
+        input_files = self.cache.get_all_files('input')
+
+        if not input_files:
+            self._print("  WARNING: No input cache found. Run Stage 3A first for optimal performance.")
+            self._print("  Scanning input folder...")
+
+            # Fallback: scan input folder if no cache exists
+            detector = DuplicateDetector(
+                cache=self.cache,
+                skip_images=self.skip_images,
+                min_file_size=self.min_file_size,
+                progress_callback=self._progress_callback
+            )
+            detector.detect_duplicates(self.input_folder, folder='input')
+            input_files = self.cache.get_all_files('input')
+
+        self._print_result(f"Loaded {len(input_files)} input files from cache")
+
+        # Phase 2: Scan output folder
+        self._print_phase(2, 5, "Scanning Output Folder")
+
+        detector = DuplicateDetector(
+            cache=self.cache,
+            skip_images=self.skip_images,
+            min_file_size=self.min_file_size,
+            progress_callback=self._progress_callback
+        )
+
+        # Scan output folder (metadata-first optimization)
+        output_groups = detector.detect_duplicates(self.output_folder, folder='output')
+
+        self._print_result(f"Scanned output folder")
+        self._print("\n" + detector.get_stats_summary())
+
+        # Phase 3: Find cross-folder duplicates
+        self._print_phase(3, 5, "Finding Cross-Folder Duplicates")
+
+        cross_folder_groups = self._find_cross_folder_duplicates()
+
+        self._print_result(f"Found {len(cross_folder_groups)} cross-folder duplicate groups")
+
+        if not cross_folder_groups:
+            self._print("\nNo cross-folder duplicates found. Nothing to do!")
+            return Stage3Results(
+                total_duplicates=0,
+                files_deleted=0,
+                space_freed=0,
+                duplicate_groups=[],
+                dry_run=self.dry_run
+            )
+
+        # Phase 4: Resolve duplicates (apply full three-tier policy)
+        self._print_phase(4, 5, "Resolving Duplicates (applying three-tier policy)")
+
+        resolution_plan = []
+        total_to_delete = 0
+        total_space = 0
+
+        for group in cross_folder_groups:
+            file_to_keep, files_to_delete = self.resolver.resolve_duplicates(group.files)
+
+            if files_to_delete:
+                resolution_plan.append({
+                    'keep': file_to_keep,
+                    'delete': files_to_delete,
+                    'size': group.size,
+                    'hash': group.hash
+                })
+                total_to_delete += len(files_to_delete)
+                total_space += group.size * len(files_to_delete)
+
+        self._print_result(f"Resolution complete: {total_to_delete} files to delete")
+        self._print_result(f"Space to free: {self._format_bytes(total_space)}")
+
+        self.stats['groups_found'] = len(cross_folder_groups)
+        self.stats['files_to_delete'] = total_to_delete
+        self.stats['space_to_free'] = total_space
+
+        # Phase 5: Execute (or dry-run)
+        self._print_phase(5, 5, "Executing Deletions" if not self.dry_run else "Dry-Run Report")
+
+        if self.dry_run:
+            self._print_dry_run_report(resolution_plan)
+        else:
+            self._execute_deletions(resolution_plan)
+
+        # Final summary
+        self._print_header("Stage 3B Complete")
+        self._print(f"Cross-folder duplicate groups found: {self.stats['groups_found']}")
+        self._print(f"Files to delete: {self.stats['files_to_delete']}")
+        self._print(f"Space to free: {self._format_bytes(self.stats['space_to_free'])}")
+
+        if not self.dry_run:
+            self._print(f"Files deleted: {self.stats['files_deleted']}")
+            self._print(f"Space freed: {self._format_bytes(self.stats['space_freed'])}")
+
+        return Stage3Results(
+            total_duplicates=self.stats['files_to_delete'],
+            files_deleted=self.stats['files_deleted'],
+            space_freed=self.stats['space_freed'],
+            duplicate_groups=cross_folder_groups,
+            dry_run=self.dry_run
+        )
+
+    def _find_cross_folder_duplicates(self) -> List[DuplicateGroup]:
+        """
+        Find duplicate files that exist in BOTH input and output folders.
+
+        Process:
+        1. Get all cached files from both folders
+        2. Group by size to find potential matches across folders
+        3. For size collisions, ensure all files are hashed
+        4. Group by hash to find actual duplicates
+
+        Returns:
+            List of DuplicateGroup objects containing files from both folders
+        """
+        from collections import defaultdict
+
+        # Get all cached files from both folders
+        input_files = self.cache.get_all_files('input')
+        output_files = self.cache.get_all_files('output')
+
+        # Phase 1: Group by size to find cross-folder size collisions
+        size_groups = defaultdict(lambda: {'input': [], 'output': []})
+
+        for file_info in input_files:
+            size_groups[file_info.file_size]['input'].append(file_info)
+
+        for file_info in output_files:
+            size_groups[file_info.file_size]['output'].append(file_info)
+
+        # Phase 2: Identify cross-folder size collisions (need hashing)
+        # Hash all files that have matching sizes across folders
+        files_to_hash = []
+
+        for size, folders in size_groups.items():
+            if folders['input'] and folders['output']:
+                # This size exists in both folders - need to hash all files of this size
+                for file_info in folders['input']:
+                    if not file_info.file_hash:
+                        files_to_hash.append((file_info, 'input'))
+
+                for file_info in folders['output']:
+                    if not file_info.file_hash:
+                        files_to_hash.append((file_info, 'output'))
+
+        # Hash files that need hashing
+        if files_to_hash:
+            self._print(f"\n  Additional hashing needed for {len(files_to_hash)} files with cross-folder size matches...")
+
+            from .duplicate_detector import FileMetadata
+
+            for file_info, folder in files_to_hash:
+                # Create FileMetadata object for hashing
+                file_path = Path(file_info.file_path)
+                if not file_path.exists():
+                    continue
+
+                file_meta = FileMetadata(
+                    path=str(file_path.absolute()),  # Convert to absolute string path
+                    size=file_info.file_size,
+                    mtime=file_info.file_mtime
+                )
+
+                # Hash and cache the file
+                detector = DuplicateDetector(
+                    cache=self.cache,
+                    skip_images=self.skip_images,
+                    min_file_size=self.min_file_size
+                )
+                detector.hash_file_with_cache(file_meta, folder)
+
+            # Reload cached files to get updated hashes
+            input_files = self.cache.get_all_files('input')
+            output_files = self.cache.get_all_files('output')
+
+        # Phase 3: Group by hash to find duplicates
+        hash_groups = defaultdict(list)
+
+        for file_info in input_files + output_files:
+            file_hash = file_info.file_hash
+            if file_hash:
+                hash_groups[file_hash].append(file_info)
+
+        # Phase 4: Find groups that have files from BOTH folders
+        cross_folder_groups = []
+
+        for file_hash, files in hash_groups.items():
+            # Check if this hash has files from both input and output
+            folders = {f.folder for f in files}
+
+            if 'input' in folders and 'output' in folders:
+                # This is a cross-folder duplicate
+                file_paths = [f.file_path for f in files]
+                file_size = files[0].file_size  # All duplicates have same size
+
+                group = DuplicateGroup(
+                    hash=file_hash,
+                    size=file_size,
+                    files=file_paths
+                )
+                cross_folder_groups.append(group)
+
+        return cross_folder_groups
+
     def _print_dry_run_report(self, resolution_plan: List[Dict]):
         """Print dry-run report showing what would be deleted."""
         self._print("\n  DRY-RUN MODE: No files will be deleted\n")
@@ -402,3 +639,151 @@ if __name__ == "__main__":
             print("\n✓ Execute mode test passed")
 
     print("\n✓ All Stage 3A tests passed!")
+
+    # ==================================================================
+    # Stage 3B Tests: Cross-Folder Deduplication
+    # ==================================================================
+
+    print("\n" + "=" * 60)
+    print("Testing Stage 3B: Cross-Folder Deduplication")
+    print("=" * 60)
+
+    with tempfile.TemporaryDirectory() as tmpdir2:
+        input_root = Path(tmpdir2) / 'input'
+        output_root = Path(tmpdir2) / 'output'
+        input_root.mkdir()
+        output_root.mkdir()
+
+        print("\n[Setup] Creating cross-folder test data...")
+
+        # Scenario 1: "keep" keyword priority
+        # Input has "keep", output doesn't → keep input, delete output
+        input_keep = input_root / 'keep' / 'important'
+        input_keep.mkdir(parents=True)
+        file1_input = input_keep / 'video_a.mp4'
+        file1_input.write_bytes(b'Video A content' * 1000)  # 15KB
+
+        output_regular = output_root / 'videos'
+        output_regular.mkdir()
+        file1_output = output_regular / 'video_a.mp4'
+        file1_output.write_bytes(b'Video A content' * 1000)  # Same content
+
+        # Scenario 2: Path depth priority
+        # Output is deeper → keep output, delete input
+        input_shallow = input_root / 'doc.pdf'
+        input_shallow.write_bytes(b'Document B' * 1000)  # 10KB
+
+        output_deep = output_root / 'documents' / 'work' / 'projects' / '2025'
+        output_deep.mkdir(parents=True)
+        file2_output = output_deep / 'doc.pdf'
+        file2_output.write_bytes(b'Document B' * 1000)  # Same content
+
+        # Scenario 3: mtime priority (same depth)
+        # Input is newer → keep input, delete output
+        import time
+
+        output_old = output_root / 'data' / 'report.txt'
+        output_old.parent.mkdir()
+        output_old.write_bytes(b'Report C' * 1000)  # 8KB
+
+        time.sleep(0.1)  # Ensure different mtime
+
+        input_new = input_root / 'reports' / 'report.txt'
+        input_new.parent.mkdir()
+        input_new.write_bytes(b'Report C' * 1000)  # Same content, newer
+
+        # Unique files (no cross-folder duplicates)
+        unique_input = input_root / 'unique_input.txt'
+        unique_input.write_bytes(b'Unique in input' * 1000)
+
+        unique_output = output_root / 'unique_output.txt'
+        unique_output.write_bytes(b'Unique in output' * 1000)
+
+        print(f"Created input folder with 4 files")
+        print(f"Created output folder with 4 files")
+        print(f"Expected: 3 cross-folder duplicate groups")
+
+        # Test Stage 3B: First run Stage 3A to populate input cache
+        print("\n" + "=" * 60)
+        print("TEST 3: Stage 3A (populate input cache)")
+        print("=" * 60)
+
+        cache_dir = Path(tmpdir2) / 'cache'
+
+        with Stage3(
+            input_folder=input_root,
+            cache_dir=cache_dir,
+            skip_images=False,
+            min_file_size=1024,  # 1KB minimum
+            dry_run=True
+        ) as stage3:
+            stage3.run_stage3a()
+
+        print("\n✓ Input cache populated")
+
+        # Test Stage 3B: Dry-run mode
+        print("\n" + "=" * 60)
+        print("TEST 4: Stage 3B Dry-Run Mode")
+        print("=" * 60)
+
+        with Stage3(
+            input_folder=input_root,
+            output_folder=output_root,
+            cache_dir=cache_dir,
+            skip_images=False,
+            min_file_size=1024,
+            dry_run=True
+        ) as stage3:
+            results = stage3.run_stage3b()
+
+            assert results.dry_run == True
+            assert results.total_duplicates == 3, f"Expected 3 duplicates, got {results.total_duplicates}"
+            assert results.files_deleted == 0, "Dry-run should not delete files"
+            print("\n✓ Stage 3B dry-run test passed")
+
+        # Test Stage 3B: Execute mode
+        print("\n" + "=" * 60)
+        print("TEST 5: Stage 3B Execute Mode")
+        print("=" * 60)
+
+        with Stage3(
+            input_folder=input_root,
+            output_folder=output_root,
+            cache_dir=cache_dir,
+            skip_images=False,
+            min_file_size=1024,
+            dry_run=False
+        ) as stage3:
+            results = stage3.run_stage3b()
+
+            assert results.dry_run == False
+            assert results.files_deleted == 3, f"Expected 3 files deleted, got {results.files_deleted}"
+            assert results.space_freed > 0, "Should have freed space"
+
+            # Verify resolution policy worked correctly
+
+            # Scenario 1: "keep" keyword priority
+            assert file1_input.exists(), "Input file with 'keep' should be kept"
+            assert not file1_output.exists(), "Output file without 'keep' should be deleted"
+
+            # Scenario 2: Path depth priority
+            assert not input_shallow.exists(), "Shallow input should be deleted"
+            assert file2_output.exists(), "Deep output should be kept"
+
+            # Scenario 3: mtime priority
+            assert input_new.exists(), "Newer input should be kept"
+            assert not output_old.exists(), "Older output should be deleted"
+
+            # Verify unique files still exist
+            assert unique_input.exists(), "Unique input file should still exist"
+            assert unique_output.exists(), "Unique output file should still exist"
+
+            print("\n✓ Stage 3B execute mode test passed")
+            print("  - Scenario 1 (keep keyword): ✓")
+            print("  - Scenario 2 (path depth):   ✓")
+            print("  - Scenario 3 (mtime):        ✓")
+
+    print("\n✓ All Stage 3B tests passed!")
+    print("\n" + "=" * 60)
+    print("✓ ALL TESTS PASSED (Stage 3A + 3B)")
+    print("=" * 60)
