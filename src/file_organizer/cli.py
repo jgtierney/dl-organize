@@ -234,13 +234,29 @@ def main() -> int:
                 if not args.execute and results.total_duplicates > 0:
                     print("\n💡 TIP: Run with --execute to actually delete duplicates")
 
-        # Stage 3B: Cross-Folder Deduplication (not yet implemented)
+        # Stage 3B: Cross-Folder Deduplication
         if args.stage == "3b":
+            # Validate output folder is provided
+            if not args.output_folder:
+                print("\n❌ ERROR: Stage 3B requires --output-folder (-of) to be specified")
+                print("   Stage 3B compares input folder against output folder for duplicates")
+                return 1
+
             print("\nStarting Stage 3B: Cross-Folder Deduplication...")
-            print("⚠️  Stage 3B not yet implemented")
-            # TODO: Implement Stage 3B
-            # with Stage3(...) as stage3:
-            #     results = stage3.run_stage3b()
+            print("💡 TIP: Run Stage 3A first to populate input cache for optimal performance")
+
+            with Stage3(
+                input_folder=Path(args.input_folder),
+                output_folder=Path(args.output_folder),
+                skip_images=args.skip_images,
+                min_file_size=args.min_file_size,
+                dry_run=not args.execute,
+                verbose=True  # Always verbose for now
+            ) as stage3:
+                results = stage3.run_stage3b()
+
+                if not args.execute and results.total_duplicates > 0:
+                    print("\n💡 TIP: Run with --execute to actually delete duplicates")
 
         print("\n" + "=" * 70)
         print("✓ Processing complete!")
