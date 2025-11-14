@@ -472,11 +472,14 @@ duplicate_detection:
 
   # Cache directory for duplicate detection database (optional)
   # If not specified, uses .file_organizer_cache in current working directory
-  # cache_directory: /path/to/cache
-  # Alternatives:
+  # Uncomment and set to use a custom cache location:
+  # cache_directory: /mnt/user/Share/.file_organizer_cache
+  #
+  # Other examples:
   # cache_directory: ~/.file_organizer_cache          # User home directory
   # cache_directory: /mnt/fast-ssd/.file_org_cache   # Put cache on fast storage
   # cache_directory: /tmp/.file_organizer_cache      # Temporary cache (cleared on reboot)
+  # cache_directory: /path/to/shared/cache           # Shared cache for multiple directories
 
 # ============================================================================
 # FILE OPERATIONS
