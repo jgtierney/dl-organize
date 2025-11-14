@@ -2,8 +2,7 @@
 Stage 2: Folder Structure Optimization Processor
 
 Implements the complete Stage 2 workflow:
-- Empty folder detection and removal
-- Folder chain flattening (< threshold items)
+- Folder chain flattening (< threshold items, including empty folders)
 - Iterative flattening (multiple passes)
 - Folder name sanitization
 - Comprehensive logging
@@ -46,8 +45,7 @@ class Stage2Processor:
         # Statistics
         self.stats = {
             'folders_scanned': 0,
-            'empty_removed': 0,
-            'folders_flattened': 0,
+            'folders_flattened': 0,  # Includes empty folders (0 items < threshold)
             'folders_renamed': 0,
             'collisions_resolved': 0,
             'errors': 0,
@@ -87,15 +85,12 @@ class Stage2Processor:
 
         self._print("=" * 70)
 
-        # Phase 1: Remove empty folders
-        self._print("\nStage 2/4: Folder Optimization - Removing Empty Folders")
-        self._remove_empty_folders()
-
-        # Phase 2: Flatten folder chains (iterative)
+        # Phase 1: Flatten folder structure (includes removing empty folders)
+        # Empty folders are treated as folders with < threshold items and are flattened
         self._print("\nStage 2/4: Folder Optimization - Flattening Structure")
         self._flatten_folders_iterative()
 
-        # Phase 3: Sanitize remaining folder names
+        # Phase 2: Sanitize remaining folder names
         self._print("\nStage 2/4: Folder Optimization - Sanitizing Names")
         self._sanitize_folder_names()
 
@@ -107,8 +102,7 @@ class Stage2Processor:
         self._print("STAGE 2 SUMMARY")
         self._print("=" * 70)
         self._print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
-        self._print(f"Empty folders removed: {self.stats['empty_removed']:,}")
-        self._print(f"Folders flattened:    {self.stats['folders_flattened']:,}")
+        self._print(f"Folders flattened:    {self.stats['folders_flattened']:,}  (includes empty folders)")
         self._print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
         self._print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
         self._print(f"Flattening passes:    {self.stats['flattening_passes']}")
@@ -315,24 +309,36 @@ class Stage2Processor:
     def _scan_folders(self) -> List[Path]:
         """
         Scan directory tree and return all folders (bottom-up order).
-        
+
         Returns:
             List of folder paths sorted by depth (deepest first)
         """
         folders = []
-        
+        progress = SimpleProgress("Scanning folders", verbose=self.verbose)
+
+        # Show immediate feedback
+        progress.update(0, force=True)
+
         try:
             for root, dirs, files in os.walk(self.input_dir, topdown=False):
                 root_path = Path(root)
-                
+
                 # Collect folders (excluding root itself)
                 for dirname in dirs:
                     folder_path = root_path / dirname
                     if folder_path.exists():  # May have been removed/moved
                         folders.append(folder_path)
+
+                        # Update progress every 50 folders (more frequent feedback)
+                        if len(folders) % 50 == 0:
+                            progress.update(len(folders))
+
         except Exception as e:
             self._print(f"  ERROR scanning directory: {e}")
             self.stats['errors'] += 1
+
+        progress.count = len(folders)
+        progress.finish()
 
         return folders
     
@@ -386,19 +392,20 @@ class Stage2Processor:
             # Count contents
             contents = list(folder_path.iterdir())
             num_items = len(contents)
-            
-            # Empty folders handled separately
+
+            # Empty folders should be flattened (effectively removed)
+            # 0 items is less than threshold, so they get flattened
             if num_items == 0:
-                return False
-            
+                return True
+
             # Check if single-child chain (only one subfolder, no files)
             if num_items == 1 and contents[0].is_dir():
                 return True
-            
+
             # Check if small folder (< threshold items)
             if num_items < self.flatten_threshold:
                 return True
-            
+
             return False
 
         except Exception as e:
