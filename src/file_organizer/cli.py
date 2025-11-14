@@ -177,6 +177,45 @@ def validate_arguments(args: argparse.Namespace) -> Optional[str]:
     return None
 
 
+def check_cache_database(cache_dir: Optional[Path]) -> bool:
+    """
+    Check if cache database exists, prompt user to create if it doesn't.
+
+    Args:
+        cache_dir: Cache directory path (None = default CWD/.file_organizer_cache)
+
+    Returns:
+        True if should continue, False if user cancelled
+    """
+    # Determine actual cache path
+    if cache_dir is None:
+        cache_path = Path.cwd() / '.file_organizer_cache' / 'hashes.db'
+    else:
+        cache_path = cache_dir / 'hashes.db'
+
+    # Check if database exists
+    if cache_path.exists():
+        return True
+
+    # Database doesn't exist - prompt user
+    print()
+    print("⚠️  Cache database not found!")
+    print(f"   Location: {cache_path}")
+    print()
+    print("The cache database stores file hashes for duplicate detection.")
+    print("Creating a new cache will scan and hash all files (may take time).")
+    print()
+
+    response = input("Create new cache database? (yes/no): ").strip().lower()
+
+    if response in ('yes', 'y'):
+        print("✓ Will create new cache database")
+        return True
+    else:
+        print("✗ Operation cancelled by user")
+        return False
+
+
 def main() -> int:
     """
     Main CLI entry point.
@@ -263,6 +302,10 @@ def main() -> int:
             cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
 
+            # Check if cache database exists, prompt if not
+            if not check_cache_database(cache_dir):
+                return 0  # User cancelled
+
             print("  Initializing cache database...")
             sys.stdout.flush()
 
@@ -307,6 +350,10 @@ def main() -> int:
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
             cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
+
+            # Check if cache database exists, prompt if not
+            if not check_cache_database(cache_dir):
+                return 0  # User cancelled
 
             print("  Initializing cache database...")
             sys.stdout.flush()
