@@ -81,67 +81,92 @@ class HashCache:
             sys.stdout.flush()
 
     def _open_database(self):
-        """Open SQLite database connection."""
+        """Open SQLite database connection with performance optimizations."""
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row  # Enable column access by name
+
+        # Performance optimizations
+        cursor = self.conn.cursor()
+
+        # Write-Ahead Logging mode for better concurrency and performance
+        cursor.execute("PRAGMA journal_mode=WAL")
+
+        # Normal synchronous mode (faster than FULL, still safe)
+        cursor.execute("PRAGMA synchronous=NORMAL")
+
+        # Larger cache size (10MB default, increase to 50MB)
+        cursor.execute("PRAGMA cache_size=-51200")  # Negative = KB
+
+        # Store temp tables in memory for speed
+        cursor.execute("PRAGMA temp_store=MEMORY")
+
+        # Memory-mapped I/O (faster reads)
+        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB
 
     def _create_schema(self):
         """Create database schema and indexes if they don't exist."""
         cursor = self.conn.cursor()
 
-        # Main cache table
+        # Check if table exists to avoid unnecessary work
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS file_cache (
-                -- Primary file identification
-                file_path TEXT NOT NULL,
-                folder TEXT NOT NULL,
-
-                -- Hash information (nullable for unique-sized files)
-                file_hash TEXT,
-                hash_type TEXT,
-                sample_size INTEGER,
-
-                -- File metadata (for moved file detection)
-                file_size INTEGER NOT NULL,
-                file_mtime REAL NOT NULL,
-
-                -- Video-specific metadata (NULL for non-videos)
-                video_duration REAL,
-                video_codec TEXT,
-                video_resolution TEXT,
-
-                -- Cache management
-                last_checked REAL NOT NULL,
-
-                PRIMARY KEY (file_path, folder)
-            )
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='file_cache'
         """)
+        table_exists = cursor.fetchone() is not None
 
-        # Index for finding files by identity (moved file detection)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_file_identity
-            ON file_cache(file_size, file_mtime, file_hash)
-        """)
+        if not table_exists:
+            # First-time setup - create everything
+            # Main cache table
+            cursor.execute("""
+                CREATE TABLE file_cache (
+                    -- Primary file identification
+                    file_path TEXT NOT NULL,
+                    folder TEXT NOT NULL,
 
-        # Index for duplicate detection
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_hash_lookup
-            ON file_cache(file_hash)
-        """)
+                    -- Hash information (nullable for unique-sized files)
+                    file_hash TEXT,
+                    hash_type TEXT,
+                    sample_size INTEGER,
 
-        # Index for folder-specific queries
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_folder
-            ON file_cache(folder)
-        """)
+                    -- File metadata (for moved file detection)
+                    file_size INTEGER NOT NULL,
+                    file_mtime REAL NOT NULL,
 
-        # Index for size-based grouping (metadata-first optimization)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_size_grouping
-            ON file_cache(file_size)
-        """)
+                    -- Video-specific metadata (NULL for non-videos)
+                    video_duration REAL,
+                    video_codec TEXT,
+                    video_resolution TEXT,
 
-        self.conn.commit()
+                    -- Cache management
+                    last_checked REAL NOT NULL,
+
+                    PRIMARY KEY (file_path, folder)
+                )
+            """)
+
+            # Create all indexes at once (faster than checking each one)
+            cursor.execute("""
+                CREATE INDEX idx_file_identity
+                ON file_cache(file_size, file_mtime, file_hash)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX idx_hash_lookup
+                ON file_cache(file_hash)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX idx_folder
+                ON file_cache(folder)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX idx_size_grouping
+                ON file_cache(file_size)
+            """)
+
+            self.conn.commit()
+        # else: Table and indexes already exist, skip creation
 
     def get_from_cache(self, file_path: str, folder: str) -> Optional[CachedFile]:
         """
