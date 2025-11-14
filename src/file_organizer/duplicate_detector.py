@@ -297,19 +297,55 @@ class DuplicateDetector:
 
         # Cache all scanned files (even without hashes) for Stage 3B
         # This ensures the cache is complete for cross-folder deduplication
-        for file_meta in files:
-            # Check if already in cache
-            cached = self.cache.get_from_cache(file_meta.path, folder)
+        # Use batch operations for performance (120k+ individual queries takes 3+ minutes!)
+
+        # Step 1: Load all cached files for this folder in one query
+        all_cached = self.cache.get_all_files(folder)
+
+        # Step 2: Build lookup dictionary for fast in-memory comparison
+        cached_by_path = {cached.file_path: cached for cached in all_cached}
+
+        # Step 3: Identify files that need cache updates
+        batch_entries = []
+
+        # Progress bar for cache update operation
+        cache_progress = ProgressBar(
+            total=len(files),
+            description="Updating cache",
+            verbose=self.verbose,
+            min_duration=1.0
+        )
+        cache_progress.update(0, {"Updated": 0, "Skipped": 0})
+
+        updated_count = 0
+        skipped_count = 0
+
+        for idx, file_meta in enumerate(files, 1):
+            cached = cached_by_path.get(file_meta.path)
+
             if not cached or cached.file_size != file_meta.size or cached.file_mtime != file_meta.mtime:
-                # Not in cache or file changed - add/update metadata (without hash yet)
-                self.cache.save_to_cache(
-                    file_path=file_meta.path,
-                    folder=folder,
-                    file_size=file_meta.size,
-                    file_mtime=file_meta.mtime,
-                    file_hash=None,  # No hash yet - will be computed if needed
-                    hash_type=None
-                )
+                # Not in cache or file changed - add to batch
+                batch_entries.append({
+                    'file_path': file_meta.path,
+                    'folder': folder,
+                    'file_size': file_meta.size,
+                    'file_mtime': file_meta.mtime,
+                    'file_hash': None,  # No hash yet - will be computed if needed
+                    'hash_type': None
+                })
+                updated_count += 1
+            else:
+                skipped_count += 1
+
+            # Update progress every 1000 files
+            if idx % 1000 == 0 or idx == len(files):
+                cache_progress.update(idx, {"Updated": updated_count, "Skipped": skipped_count})
+
+        # Step 4: Save all updates in one batch operation
+        if batch_entries:
+            self.cache.save_batch(batch_entries)
+
+        cache_progress.finish({"Updated": updated_count, "Skipped": skipped_count})
 
         # Phase 2: Group by size
         if self.progress_callback:

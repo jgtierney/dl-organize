@@ -250,6 +250,68 @@ class HashCache:
 
         self.conn.commit()
 
+    def save_batch(
+        self,
+        entries: List[Dict[str, Any]]
+    ):
+        """
+        Save or update multiple cache entries in a single transaction.
+
+        This is MUCH faster than calling save_to_cache() repeatedly because:
+        - Single executemany() instead of N execute() calls
+        - Single commit() instead of N commits
+        - SQLite optimizes batch inserts internally
+
+        Args:
+            entries: List of dictionaries with cache entry data
+
+        Each entry dict should contain:
+            - file_path (str, required)
+            - folder (str, required)
+            - file_size (int, required)
+            - file_mtime (float, required)
+            - file_hash (str, optional)
+            - hash_type (str, optional)
+            - sample_size (int, optional)
+            - video_duration (float, optional)
+            - video_codec (str, optional)
+            - video_resolution (str, optional)
+        """
+        if not entries:
+            return
+
+        cursor = self.conn.cursor()
+        now = time.time()
+
+        # Prepare batch data
+        batch_data = []
+        for entry in entries:
+            batch_data.append((
+                entry['file_path'],
+                entry['folder'],
+                entry.get('file_hash'),
+                entry.get('hash_type'),
+                entry.get('sample_size'),
+                entry['file_size'],
+                entry['file_mtime'],
+                entry.get('video_duration'),
+                entry.get('video_codec'),
+                entry.get('video_resolution'),
+                now
+            ))
+
+        # Execute batch insert with executemany (much faster than loop)
+        cursor.executemany("""
+            INSERT OR REPLACE INTO file_cache (
+                file_path, folder, file_hash, hash_type, sample_size,
+                file_size, file_mtime, video_duration, video_codec,
+                video_resolution, last_checked
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, batch_data)
+
+        # Single commit for entire batch
+        self.conn.commit()
+
     def update_cache(
         self,
         file_path: str,
