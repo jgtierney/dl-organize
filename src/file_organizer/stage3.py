@@ -80,7 +80,7 @@ class Stage3:
         # Initialize cache
         if cache_dir is None:
             cache_dir = Path.cwd() / '.file_organizer_cache'
-        self.cache = HashCache(cache_dir)
+        self.cache = HashCache(cache_dir, verbose=self.verbose)
 
         # Initialize resolver
         self.resolver = DuplicateResolver()

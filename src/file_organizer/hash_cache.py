@@ -42,25 +42,43 @@ class HashCache:
     Database location: .file_organizer_cache/hashes.db in execution directory
     """
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Optional[Path] = None, verbose: bool = False):
         """
         Initialize hash cache.
 
         Args:
             cache_dir: Directory for cache database (defaults to .file_organizer_cache in CWD)
+            verbose: Print status messages during initialization
         """
         if cache_dir is None:
             cache_dir = Path.cwd() / '.file_organizer_cache'
 
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(exist_ok=True)
+        self.verbose = verbose
 
         self.db_path = self.cache_dir / 'hashes.db'
         self.conn: Optional[sqlite3.Connection] = None
 
         # Open database and create schema if needed
+        if self.verbose:
+            print(f"  Opening cache database: {self.db_path}")
+            import sys
+            sys.stdout.flush()
+
         self._open_database()
+
+        if self.verbose:
+            print("  Checking database schema and indexes...")
+            import sys
+            sys.stdout.flush()
+
         self._create_schema()
+
+        if self.verbose:
+            print("  ✓ Cache database ready")
+            import sys
+            sys.stdout.flush()
 
     def _open_database(self):
         """Open SQLite database connection."""
