@@ -445,6 +445,9 @@ class Stage3:
                 min_duration=1.0
             )
 
+            # Show progress bar immediately with 0 progress
+            hash_progress.update(0, {"Hashed": 0, "Skipped": 0})
+
             # Create ONE detector and reuse it for all files (much more efficient)
             detector = DuplicateDetector(
                 cache=self.cache,
