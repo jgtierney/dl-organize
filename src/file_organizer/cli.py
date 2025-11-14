@@ -6,6 +6,8 @@ Handles argument parsing, validation, and orchestration of processing stages.
 
 import argparse
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +17,22 @@ from .stage2 import Stage2Processor
 from .stage3 import Stage3
 from .stage4 import Stage4Processor
 from .config import Config
+
+
+# Global for tracking elapsed time
+_start_time = None
+
+
+def log_timing(message: str):
+    """Log a message with elapsed time since start."""
+    global _start_time
+    if _start_time is None:
+        _start_time = time.time()
+        elapsed = 0.0
+    else:
+        elapsed = time.time() - _start_time
+
+    print(f"[{elapsed:7.2f}s] {message}", flush=True)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -287,9 +305,10 @@ def main() -> int:
 
         # Stage 3A: Internal Duplicate Detection
         if run_all or args.stage == "3a":
-            print("\nStarting Stage 3A: Internal Duplicate Detection...")
+            log_timing("Starting Stage 3A: Internal Duplicate Detection...")
 
             # Get Stage 3 settings from config (CLI override if provided)
+            log_timing("  Reading configuration...")
             # Determine skip_images from CLI flags or config
             skip_images_cli = None
             if args.skip_images_flag:
@@ -301,12 +320,15 @@ def main() -> int:
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
             cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
+            log_timing("  Configuration loaded")
 
             # Check if cache database exists, prompt if not
+            log_timing("  Checking cache database...")
             if not check_cache_database(cache_dir):
                 return 0  # User cancelled
+            log_timing("  Cache check complete")
 
-            print("  Initializing cache database...")
+            log_timing("  Initializing cache database...")
             sys.stdout.flush()
 
             with Stage3(
@@ -318,7 +340,9 @@ def main() -> int:
                 dry_run=not args.execute,
                 verbose=verbose
             ) as stage3:
+                log_timing("  Cache initialized, starting duplicate detection...")
                 results = stage3.run_stage3a()
+                log_timing("  Stage 3A complete")
 
                 if not args.execute and results.total_duplicates > 0:
                     print("\n💡 TIP: Run with --execute to actually delete duplicates")
@@ -334,11 +358,12 @@ def main() -> int:
                 print("   Stage 3B compares input folder against output folder for duplicates")
                 return 1
 
-            print("\nStarting Stage 3B: Cross-Folder Deduplication...")
+            log_timing("Starting Stage 3B: Cross-Folder Deduplication...")
             if run_all:
                 print("💡 Output folder detected - running Stage 3B to find cross-folder duplicates")
 
             # Get Stage 3 settings from config (CLI override if provided)
+            log_timing("  Reading configuration...")
             # Determine skip_images from CLI flags or config
             skip_images_cli = None
             if args.skip_images_flag:
@@ -350,12 +375,15 @@ def main() -> int:
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
             cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
+            log_timing("  Configuration loaded")
 
             # Check if cache database exists, prompt if not
+            log_timing("  Checking cache database...")
             if not check_cache_database(cache_dir):
                 return 0  # User cancelled
+            log_timing("  Cache check complete")
 
-            print("  Initializing cache database...")
+            log_timing("  Initializing cache database...")
             sys.stdout.flush()
 
             with Stage3(
@@ -367,7 +395,9 @@ def main() -> int:
                 dry_run=not args.execute,
                 verbose=verbose
             ) as stage3:
+                log_timing("  Cache initialized, starting cross-folder detection...")
                 results = stage3.run_stage3b()
+                log_timing("  Stage 3B complete")
 
                 if not args.execute and results.total_duplicates > 0:
                     print("\n💡 TIP: Run with --execute to actually delete duplicates")
