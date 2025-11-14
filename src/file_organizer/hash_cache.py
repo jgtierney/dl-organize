@@ -81,27 +81,9 @@ class HashCache:
             sys.stdout.flush()
 
     def _open_database(self):
-        """Open SQLite database connection with performance optimizations."""
+        """Open SQLite database connection."""
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row  # Enable column access by name
-
-        # Performance optimizations
-        cursor = self.conn.cursor()
-
-        # Write-Ahead Logging mode for better concurrency and performance
-        cursor.execute("PRAGMA journal_mode=WAL")
-
-        # Normal synchronous mode (faster than FULL, still safe)
-        cursor.execute("PRAGMA synchronous=NORMAL")
-
-        # Larger cache size (10MB default, increase to 50MB)
-        cursor.execute("PRAGMA cache_size=-51200")  # Negative = KB
-
-        # Store temp tables in memory for speed
-        cursor.execute("PRAGMA temp_store=MEMORY")
-
-        # Memory-mapped I/O (faster reads)
-        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB
 
     def _create_schema(self):
         """Create database schema and indexes if they don't exist."""
@@ -115,8 +97,28 @@ class HashCache:
         table_exists = cursor.fetchone() is not None
 
         if not table_exists:
-            # First-time setup - create everything
-            # Main cache table
+            # First-time setup - set performance optimizations
+            if self.verbose:
+                print("  Setting database performance optimizations...")
+                import sys
+                sys.stdout.flush()
+
+            # Write-Ahead Logging mode for better concurrency and performance
+            cursor.execute("PRAGMA journal_mode=WAL")
+
+            # Normal synchronous mode (faster than FULL, still safe)
+            cursor.execute("PRAGMA synchronous=NORMAL")
+
+            # Larger cache size (10MB default, increase to 50MB)
+            cursor.execute("PRAGMA cache_size=-51200")  # Negative = KB
+
+            # Store temp tables in memory for speed
+            cursor.execute("PRAGMA temp_store=MEMORY")
+
+            # Memory-mapped I/O (64MB - sufficient for ~80K files)
+            cursor.execute("PRAGMA mmap_size=67108864")  # 64MB
+
+            # Create main cache table
             cursor.execute("""
                 CREATE TABLE file_cache (
                     -- Primary file identification
@@ -166,7 +168,7 @@ class HashCache:
             """)
 
             self.conn.commit()
-        # else: Table and indexes already exist, skip creation
+        # else: Table and indexes already exist, skip creation and PRAGMA settings
 
     def get_from_cache(self, file_path: str, folder: str) -> Optional[CachedFile]:
         """
