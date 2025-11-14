@@ -330,6 +330,31 @@ class Config:
             print(f"WARNING: Invalid min_file_size value '{value}': {e}. Using default (10240).")
             return 10240
 
+    def get_cache_dir(self, cli_override: Optional[str] = None) -> Optional[Path]:
+        """
+        Get cache directory for duplicate detection database.
+
+        Args:
+            cli_override: CLI override path (takes precedence)
+
+        Returns:
+            Path object or None (None = use default .file_organizer_cache in CWD)
+        """
+        # CLI override takes precedence
+        if cli_override is not None:
+            return Path(cli_override)
+
+        # Try to get from nested duplicate_detection config
+        if 'duplicate_detection' in self.config_data:
+            dup_config = self.config_data['duplicate_detection']
+            if isinstance(dup_config, dict) and 'cache_directory' in dup_config:
+                cache_dir = dup_config['cache_directory']
+                if cache_dir:
+                    return Path(cache_dir)
+
+        # Return None to use default (CWD/.file_organizer_cache)
+        return None
+
     def get_verbose(self, cli_override: Optional[bool] = None) -> bool:
         """
         Get verbose logging setting.
@@ -444,7 +469,14 @@ duplicate_detection:
   # min_file_size: 0        # Process all files regardless of size
   # min_file_size: 1024     # 1 KB minimum
   # min_file_size: 51200    # 50 KB minimum
-  # min_file_size: 1048576  # 1 MB minimum
+
+  # Cache directory for duplicate detection database (optional)
+  # If not specified, uses .file_organizer_cache in current working directory
+  # cache_directory: /path/to/cache
+  # Alternatives:
+  # cache_directory: ~/.file_organizer_cache          # User home directory
+  # cache_directory: /mnt/fast-ssd/.file_org_cache   # Put cache on fast storage
+  # cache_directory: /tmp/.file_organizer_cache      # Temporary cache (cleared on reboot)
 
 # ============================================================================
 # FILE OPERATIONS

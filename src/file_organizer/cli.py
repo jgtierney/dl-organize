@@ -95,6 +95,14 @@ def parse_arguments() -> argparse.Namespace:
         help="Minimum file size to process in duplicate detection (default: from config or 10240 bytes = 10KB)"
     )
 
+    parser.add_argument(
+        "--cache-dir",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Cache directory for duplicate detection database (default: from config or .file_organizer_cache in current directory)"
+    )
+
     # Stage 2-specific arguments
     parser.add_argument(
         "--flatten-threshold",
@@ -252,6 +260,7 @@ def main() -> int:
             skip_images = config.get_skip_images(cli_override=skip_images_cli)
 
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
+            cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
 
             print("  Initializing cache database...")
@@ -260,6 +269,7 @@ def main() -> int:
             with Stage3(
                 input_folder=Path(args.input_folder),
                 output_folder=None,  # Stage 3A doesn't use output folder
+                cache_dir=cache_dir,
                 skip_images=skip_images,
                 min_file_size=min_file_size,
                 dry_run=not args.execute,
@@ -295,6 +305,7 @@ def main() -> int:
             skip_images = config.get_skip_images(cli_override=skip_images_cli)
 
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
+            cache_dir = config.get_cache_dir(cli_override=args.cache_dir)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
 
             print("  Initializing cache database...")
@@ -303,6 +314,7 @@ def main() -> int:
             with Stage3(
                 input_folder=Path(args.input_folder),
                 output_folder=Path(args.output_folder),
+                cache_dir=cache_dir,
                 skip_images=skip_images,
                 min_file_size=min_file_size,
                 dry_run=not args.execute,
