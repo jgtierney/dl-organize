@@ -254,6 +254,9 @@ def main() -> int:
             min_file_size = config.get_min_file_size(cli_override=args.min_file_size)
             verbose = config.get_verbose(cli_override=args.verbose if args.verbose else None)
 
+            print("  Initializing cache database...")
+            sys.stdout.flush()
+
             with Stage3(
                 input_folder=Path(args.input_folder),
                 output_folder=None,  # Stage 3A doesn't use output folder
