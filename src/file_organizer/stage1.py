@@ -73,6 +73,7 @@ class Stage1Processor:
 
         # Phase 1: Scan directory tree
         self._print("Stage 1/4: Filename Detoxification - Scanning Directory")
+        sys.stdout.flush()  # Ensure message appears immediately
         files, folders = self._scan_directory()
 
         self.stats['files_scanned'] = len(files)
@@ -127,6 +128,9 @@ class Stage1Processor:
         folders = []
         progress = SimpleProgress("Scanning", verbose=self.verbose)
 
+        # Show immediate feedback (update at 0 items to display starting message)
+        progress.update(0, force=True)
+
         for root, dirs, filenames in os.walk(self.input_dir, topdown=False):
             root_path = Path(root)
 
@@ -135,8 +139,8 @@ class Stage1Processor:
                 file_path = root_path / filename
                 files.append(file_path)
 
-                # Update progress every 100 items
-                if len(files) % 100 == 0:
+                # Update progress every 50 items (more frequent feedback)
+                if len(files) % 50 == 0:
                     progress.update(len(files) + len(folders))
 
             # Collect folders (excluding root)
