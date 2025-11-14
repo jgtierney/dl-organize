@@ -445,6 +445,14 @@ class Stage3:
                 min_duration=1.0
             )
 
+            # Create ONE detector and reuse it for all files (much more efficient)
+            detector = DuplicateDetector(
+                cache=self.cache,
+                skip_images=self.skip_images,
+                min_file_size=self.min_file_size,
+                verbose=False  # Disable verbose to avoid spam during loop
+            )
+
             hashed_count = 0
             skipped_count = 0
 
@@ -463,12 +471,6 @@ class Stage3:
                 )
 
                 # Hash and cache the file
-                detector = DuplicateDetector(
-                    cache=self.cache,
-                    skip_images=self.skip_images,
-                    min_file_size=self.min_file_size,
-                    verbose=self.verbose
-                )
                 detector.hash_file_with_cache(file_meta, folder)
                 hashed_count += 1
 
