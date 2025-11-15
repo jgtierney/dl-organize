@@ -454,9 +454,60 @@ class HashCache:
 
         return [row['file_path'] for row in cursor.fetchall()]
 
+    def get_files_by_paths(self, file_paths: List[str], folder: str) -> Dict[str, CachedFile]:
+        """
+        Get cached files for specific paths (batch query, much faster than loading all).
+
+        Args:
+            file_paths: List of file paths to look up
+            folder: 'input' or 'output'
+
+        Returns:
+            Dictionary mapping file_path -> CachedFile (only includes found entries)
+        """
+        if not file_paths:
+            return {}
+
+        cursor = self.conn.cursor()
+        
+        # Use batch query with IN clause (SQLite supports up to 999 parameters)
+        # For large lists, split into chunks
+        BATCH_SIZE = 999
+        result_dict = {}
+
+        for i in range(0, len(file_paths), BATCH_SIZE):
+            batch_paths = file_paths[i:i + BATCH_SIZE]
+            placeholders = ','.join('?' * len(batch_paths))
+            
+            cursor.execute(f"""
+                SELECT * FROM file_cache
+                WHERE folder = ? AND file_path IN ({placeholders})
+            """, (folder, *batch_paths))
+
+            for row in cursor.fetchall():
+                cached = CachedFile(
+                    file_path=row['file_path'],
+                    folder=row['folder'],
+                    file_hash=row['file_hash'],
+                    hash_type=row['hash_type'],
+                    sample_size=row['sample_size'],
+                    file_size=row['file_size'],
+                    file_mtime=row['file_mtime'],
+                    video_duration=row['video_duration'],
+                    video_codec=row['video_codec'],
+                    video_resolution=row['video_resolution'],
+                    last_checked=row['last_checked']
+                )
+                result_dict[cached.file_path] = cached
+
+        return result_dict
+
     def get_all_files(self, folder: str) -> List[CachedFile]:
         """
         Get all cached files for a folder.
+
+        WARNING: This loads ALL cached files into memory. For performance,
+        use get_files_by_paths() if you only need specific files.
 
         Args:
             folder: 'input' or 'output'

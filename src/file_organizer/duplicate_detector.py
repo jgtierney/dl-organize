@@ -297,13 +297,12 @@ class DuplicateDetector:
 
         # Cache all scanned files (even without hashes) for Stage 3B
         # This ensures the cache is complete for cross-folder deduplication
-        # Use batch operations for performance (120k+ individual queries takes 3+ minutes!)
+        # Use batch operations for performance (much faster than loading all files!)
 
-        # Step 1: Load all cached files for this folder in one query
-        all_cached = self.cache.get_all_files(folder)
-
-        # Step 2: Build lookup dictionary for fast in-memory comparison
-        cached_by_path = {cached.file_path: cached for cached in all_cached}
+        # Step 1: Batch query only the files we scanned (not all cached files)
+        # This is MUCH faster when cache has 100k+ entries but we only scanned 1k-10k files
+        scanned_paths = [file_meta.path for file_meta in files]
+        cached_by_path = self.cache.get_files_by_paths(scanned_paths, folder)
 
         # Step 3: Identify files that need cache updates
         batch_entries = []
