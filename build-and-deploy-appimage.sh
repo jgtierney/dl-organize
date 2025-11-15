@@ -180,7 +180,7 @@ else
     echo "⚠ Warning: Failed to set executable permissions"
 fi
 
-# Copy default config file only if it doesn't already exist
+# Copy default config file (only if it doesn't exist)
 CONFIG_FILE=".file_organizer.yaml"
 CONFIG_SOURCE="${SCRIPT_DIR}/${CONFIG_FILE}"
 CONFIG_DEST="${DEPLOY_DIR}/${CONFIG_FILE}"
