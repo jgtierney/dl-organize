@@ -245,6 +245,8 @@ class Stage3:
         sys.stdout.flush()
 
         input_files = self.cache.get_all_files('input')
+        # Cache for reuse in _find_cross_folder_duplicates() to avoid reloading
+        self._cached_input_files = input_files
 
         if not input_files:
             self._print("  WARNING: No input cache found. Run Stage 3A first for optimal performance.")
@@ -366,8 +368,18 @@ class Stage3:
         from collections import defaultdict
 
         # Get all cached files from both folders
+        # NOTE: For Stage 3B, we need ALL files from both folders to find cross-folder duplicates
+        # This is different from Stage 3A where we only need scanned files
+        # However, if we've already loaded input_files in Phase 1, we can reuse it
         self._print("  Loading cached file metadata...")
-        input_files = self.cache.get_all_files('input')
+        
+        # Reuse input_files if already loaded (from Phase 1)
+        if not hasattr(self, '_cached_input_files'):
+            input_files = self.cache.get_all_files('input')
+            self._cached_input_files = input_files  # Cache for reuse
+        else:
+            input_files = self._cached_input_files
+        
         output_files = self.cache.get_all_files('output')
         self._print(f"  ✓ Loaded {len(input_files):,} input files and {len(output_files):,} output files from cache")
 
@@ -482,9 +494,30 @@ class Stage3:
             hash_progress.finish({"Hashed": hashed_count, "Skipped": skipped_count})
 
             # Reload cached files to get updated hashes
+            # Only reload files that were hashed, not all files (optimization)
             self._print("\n  Reloading cache with updated hashes...")
-            input_files = self.cache.get_all_files('input')
-            output_files = self.cache.get_all_files('output')
+            
+            # Get paths of files that were hashed, separated by folder
+            hashed_input_paths = [f[0].file_path for f in files_to_hash if f[1] == 'input']
+            hashed_output_paths = [f[0].file_path for f in files_to_hash if f[1] == 'output']
+            
+            # Batch query only the files that were updated
+            updated_input = self.cache.get_files_by_paths(hashed_input_paths, 'input') if hashed_input_paths else {}
+            updated_output = self.cache.get_files_by_paths(hashed_output_paths, 'output') if hashed_output_paths else {}
+            
+            # Update in-memory lists with new hashes
+            input_dict = {f.file_path: f for f in input_files}
+            output_dict = {f.file_path: f for f in output_files}
+            
+            input_dict.update(updated_input)
+            output_dict.update(updated_output)
+            
+            input_files = list(input_dict.values())
+            output_files = list(output_dict.values())
+            
+            # Update cached input files for reuse
+            self._cached_input_files = input_files
+            
             self._print(f"  ✓ Cache reloaded ({len(input_files):,} input, {len(output_files):,} output)")
 
         # Phase 3: Group by hash to find duplicates
