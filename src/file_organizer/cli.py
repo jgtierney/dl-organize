@@ -121,6 +121,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Cache directory for duplicate detection database (default: from config or .file_organizer_cache in current directory)"
     )
 
+    parser.add_argument(
+        "--verify-files",
+        action="store_true",
+        help="Verify files still exist before resolving duplicates (slower, but detects moved/deleted files)"
+    )
+
     # Stage 2-specific arguments
     parser.add_argument(
         "--flatten-threshold",
@@ -338,7 +344,8 @@ def main() -> int:
                 skip_images=skip_images,
                 min_file_size=min_file_size,
                 dry_run=not args.execute,
-                verbose=verbose
+                verbose=verbose,
+                verify_files=args.verify_files
             ) as stage3:
                 log_timing("  Cache initialized, starting duplicate detection...")
                 results = stage3.run_stage3a()
@@ -393,7 +400,8 @@ def main() -> int:
                 skip_images=skip_images,
                 min_file_size=min_file_size,
                 dry_run=not args.execute,
-                verbose=verbose
+                verbose=verbose,
+                verify_files=args.verify_files
             ) as stage3:
                 log_timing("  Cache initialized, starting cross-folder detection...")
                 results = stage3.run_stage3b()

@@ -56,7 +56,8 @@ class Stage3:
         skip_images: bool = True,
         min_file_size: int = 10 * 1024,
         dry_run: bool = True,
-        verbose: bool = True
+        verbose: bool = True,
+        verify_files: bool = False
     ):
         """
         Initialize Stage 3 orchestrator.
@@ -69,6 +70,7 @@ class Stage3:
             min_file_size: Minimum file size in bytes (default 10KB)
             dry_run: Dry-run mode (default True, no actual deletions)
             verbose: Print progress messages (default True)
+            verify_files: Verify files exist before resolving (default False, uses cached metadata)
         """
         self.input_folder = input_folder.resolve()
         self.output_folder = output_folder.resolve() if output_folder else None
@@ -76,6 +78,7 @@ class Stage3:
         self.min_file_size = min_file_size
         self.dry_run = dry_run
         self.verbose = verbose
+        self.verify_files = verify_files
 
         # Initialize cache
         if cache_dir is None:
@@ -302,12 +305,26 @@ class Stage3:
         # Phase 4: Resolve duplicates (apply full three-tier policy)
         self._print_phase(4, 5, "Resolving Duplicates (applying three-tier policy)")
 
+        # Build cache lookup dictionary for fast access (optimization)
+        file_cache_lookup = {}
+        for f in input_files + output_files:
+            file_cache_lookup[f.file_path] = f
+
         resolution_plan = []
         total_to_delete = 0
         total_space = 0
 
         for group in cross_folder_groups:
-            file_to_keep, files_to_delete = self.resolver.resolve_duplicates(group.files)
+            # Use optimized resolver (cached metadata) or full resolver (with stat())
+            if self.verify_files:
+                # Full verification mode: calls stat() to verify files exist
+                file_to_keep, files_to_delete = self.resolver.resolve_duplicates(group.files)
+            else:
+                # Optimized mode: uses cached metadata (much faster)
+                file_to_keep, files_to_delete = self.resolver.resolve_duplicates_with_cache(
+                    group.files, 
+                    file_cache_lookup
+                )
 
             if files_to_delete:
                 resolution_plan.append({

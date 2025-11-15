@@ -151,6 +151,9 @@ python -m src.file_organizer -if /path --stage 3a --no-skip-images --execute
 
 # Custom minimum file size (default: 10KB)
 python -m src.file_organizer -if /path --stage 3a --min-file-size 1024 --execute
+
+# Verify files exist before resolving duplicates (slower, detects moved/deleted files)
+python -m src.file_organizer -if /input -of /output --stage 3b --verify-files --execute
 ```
 
 ### Stage 4 Options

@@ -8,9 +8,14 @@ Implements three-tier resolution policy:
 """
 
 import os
+import logging
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from dataclasses import dataclass
+
+from .hash_cache import CachedFile
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -185,6 +190,110 @@ class DuplicateResolver:
         ]
 
         return best_file.path, files_to_delete
+
+    def resolve_duplicates_with_cache(
+        self, 
+        file_paths: List[str],
+        cache_lookup: Dict[str, CachedFile]
+    ) -> Tuple[str, List[str]]:
+        """
+        Resolve duplicates using cached metadata (no filesystem calls).
+        
+        This is the optimized version that uses cached metadata instead of
+        calling stat() for each file. Much faster (100-1000x) but doesn't
+        verify files still exist.
+        
+        Args:
+            file_paths: List of duplicate file paths
+            cache_lookup: Dictionary mapping file_path -> CachedFile
+            
+        Returns:
+            Tuple of (file_to_keep, files_to_delete)
+        """
+        if not file_paths:
+            return None, []
+        
+        if len(file_paths) == 1:
+            return file_paths[0], []
+        
+        # Analyze all files using cached metadata
+        file_infos = []
+        for path in file_paths:
+            cached = cache_lookup.get(path)
+            if cached:
+                # Use cached metadata (fast - no filesystem call)
+                file_info = self.analyze_file_from_cache(path, cached)
+            else:
+                # Fallback to stat() if not in cache (rare - should not happen)
+                # Log warning for debugging
+                logger.warning(f"File not in cache, using stat(): {path}")
+                file_info = self.analyze_file(path)
+            file_infos.append(file_info)
+        
+        # Find the file with highest priority (same logic as resolve_duplicates)
+        best_file = file_infos[0]
+        for file_info in file_infos[1:]:
+            comparison = self.compare_files(best_file, file_info)
+            if comparison > 0:
+                # Current file_info is better
+                best_file = file_info
+        
+        # Build delete list (all files except the best one)
+        files_to_delete = [
+            f.path for f in file_infos
+            if f.path != best_file.path
+        ]
+        
+        return best_file.path, files_to_delete
+
+    def analyze_file_from_cache(self, file_path: str, cached: CachedFile) -> FileInfo:
+        """
+        Analyze a file using cached metadata (no filesystem calls).
+        
+        Args:
+            file_path: Absolute path to file
+            cached: CachedFile object with metadata
+            
+        Returns:
+            FileInfo with all resolution metadata
+        """
+        path = Path(file_path)
+        
+        # Use cached metadata (no stat() call!)
+        size = cached.file_size
+        mtime = cached.file_mtime
+        
+        # Calculate path depth (number of path components)
+        depth = len(path.parts)
+        
+        # Check for "keep" keyword (case-insensitive)
+        path_lower = file_path.lower()
+        has_keep = 'keep' in path_lower
+        
+        # Determine if "keep" is in folder path or just filename
+        keep_in_folder = False
+        keep_ancestor_depth = None
+        
+        if has_keep:
+            # Check each ancestor folder for "keep"
+            parent_path = path.parent
+            parent_parts = parent_path.parts
+            
+            for i, part in enumerate(parent_parts):
+                if 'keep' in part.lower():
+                    keep_in_folder = True
+                    keep_ancestor_depth = i + 1
+                    break
+        
+        return FileInfo(
+            path=file_path,
+            size=size,
+            mtime=mtime,
+            depth=depth,
+            has_keep=has_keep,
+            keep_in_folder=keep_in_folder,
+            keep_ancestor_depth=keep_ancestor_depth
+        )
 
     def explain_decision(self, file_to_keep: str, files_to_delete: List[str]) -> str:
         """
