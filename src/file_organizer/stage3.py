@@ -305,6 +305,9 @@ class Stage3:
         # Phase 4: Resolve duplicates (apply full three-tier policy)
         self._print_phase(4, 5, "Resolving Duplicates (applying three-tier policy)")
 
+        # Load output files from cache (needed for cache lookup)
+        output_files = self.cache.get_all_files('output')
+
         # Build cache lookup dictionary for fast access (optimization)
         file_cache_lookup = {}
         for f in input_files + output_files:
