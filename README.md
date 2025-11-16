@@ -9,10 +9,10 @@ A powerful Python application for systematically organizing and cleaning up larg
 
 | Stage | Name | Status | Documentation |
 |-------|------|--------|---------------|
-| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stage1_requirements.md) |
-| 2 | Folder Structure Optimization | ⏳ Next Up - Implementation Starting | [Details](docs/stage2_requirements.md) |
-| 3 | Duplicate Detection & Resolution | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
-| 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project-phases.md) |
+| 1 | Filename Detoxification | ✅ **COMPLETE** - Production Ready | [Details](docs/stages/stage1_requirements.md) |
+| 2 | Folder Structure Optimization | ✅ **COMPLETE** - Production Ready | [Details](docs/stages/stage2_requirements.md) |
+| 3 | Duplicate Detection & Resolution | 📋 Requirements Complete - Ready for Dev | [Details](docs/stages/stage3_requirements.md) |
+| 4 | File Relocation | 📋 Planning Phase | [Roadmap](docs/project/project-phases.md) |
 
 ### 🎉 Stage 1 Achievement
 - ✅ Tested on **110,000+ files** with 100% success rate
@@ -39,10 +39,14 @@ The File Organizer processes directories through multiple stages:
 - Sanitizes folder names
 - **Performance**: 10k folders in ~5 minutes
 
-### Stage 3: Duplicate Detection (Planned)
-- Identifies duplicate files via hash comparison
-- Prevents duplicate collisions with output folder
-- Configurable duplicate resolution policies
+### Stage 3: Duplicate Detection & Resolution
+- **Hash-based duplicate identification** (SHA-256, SHA-1, MD5, BLAKE2b)
+- **Configurable resolution policies** (keep newest, largest, oldest, first, or manual)
+- **Persistent hash caching** for fast subsequent runs
+- **Parallel hashing** support (leverage multi-core CPUs)
+- **Size-based pre-filtering** (massive performance boost)
+- **Memory efficient**: < 500MB for 500k files
+- **Performance**: 100GB in < 5 minutes (SSD)
 
 ### Stage 4: File Relocation (Planned)
 - Moves organized files from input to output folder
@@ -65,24 +69,87 @@ The File Organizer processes directories through multiple stages:
 
 ## 📦 Installation
 
-### 1. Clone the Repository
+### Option 1: AppImage (Recommended - No Python Required!)
+
+The easiest way to run File Organizer on Linux - just download and run!
+
+#### Download
+Download the latest AppImage from the releases page:
+- **file-organizer-x86_64.AppImage** (~32 MB)
+
+#### Make Executable
+```bash
+chmod +x file-organizer-x86_64.AppImage
+```
+
+#### Run
+```bash
+./file-organizer-x86_64.AppImage --help
+```
+
+#### Features
+- ✅ **No Python installation required** - Python 3.12 bundled
+- ✅ **No dependencies** - All libraries included (xxhash, pymediainfo, libmediainfo)
+- ✅ **Works everywhere** - Any modern Linux distribution (kernel 2.6.32+)
+- ✅ **Single file** - Easy to distribute and run
+- ✅ **32 MB** - Compact size with full functionality
+
+### Option 2: From Source (For Development)
+
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/jgtierney/dl-organize.git
 cd dl-organize
 ```
 
-### 2. Create Virtual Environment
+#### 2. Create Virtual Environment
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+#### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
+### Building Your Own AppImage
+
+To build the AppImage yourself:
+
+```bash
+./build-appimage.sh
+```
+
+Requirements for building:
+- Python 3.8+ with pip
+- wget (for downloading appimagetool)
+- Standard Linux build tools
+
+The build script will:
+1. Bundle Python 3.12 interpreter
+2. Install all dependencies (unidecode, pyyaml, xxhash, pymediainfo)
+3. Copy required system libraries (libmediainfo)
+4. Create self-contained AppImage (~32 MB)
+
+See [AppImage Test Report](docs/guides/appimage_test_report.md) for detailed build and test results.
+
 ## 🎮 Usage
+
+### Using AppImage
+
+```bash
+# Preview changes (dry-run mode)
+./file-organizer-x86_64.AppImage -if /path/to/messy/downloads
+
+# Execute changes
+./file-organizer-x86_64.AppImage -if /path/to/messy/downloads --execute
+
+# Run specific stage
+./file-organizer-x86_64.AppImage -if /path/to/input --stage 1 --execute
+```
+
+### Using From Source
 
 ### Basic Usage (Dry-Run)
 Preview changes without modifying files:
@@ -138,23 +205,23 @@ Expected performance on recommended hardware (32GB RAM, 16 cores):
 ```
 file-organizer/
 ├── src/
-│   └── file_organizer/        # Main application code (to be implemented)
+│   └── file_organizer/        # Main application code
 │       ├── __init__.py
 │       ├── __main__.py        # CLI entry point
 │       ├── stage1.py          # Filename detoxification
 │       ├── stage2.py          # Folder optimization
-│       ├── filename_cleaner.py
-│       ├── utils.py
-│       └── logger.py
-├── tests/                      # Test files (to be implemented)
-├── docs/                       # Comprehensive documentation
-│   ├── requirements.md         # Project overview
-│   ├── stage1_requirements.md  # Stage 1 detailed specs (505 lines)
-│   ├── stage2_requirements.md  # Stage 2 detailed specs (580 lines)
-│   ├── design_decisions.md     # All 29 design decisions
-│   ├── project-phases.md       # Roadmap and phase details
-│   ├── agent-sessions.md       # AI agent work log
-│   └── onboarding.md           # New contributor guide
+│       ├── stage3.py          # Duplicate detection
+│       ├── duplicate_detector.py
+│       ├── duplicate_resolver.py
+│       ├── hash_cache.py
+│       └── ...
+├── tests/                      # Comprehensive test suites
+├── docs/                       # Documentation (organized by category)
+│   ├── README.md              # Documentation index
+│   ├── stages/                # Stage requirements and implementation
+│   ├── onboarding/            # Getting started guides
+│   ├── project/               # Project management and planning
+│   └── guides/                # Setup and reference materials
 ├── config/                     # Configuration files
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
@@ -163,22 +230,23 @@ file-organizer/
 ## 📚 Documentation
 
 ### For New Contributors
-- **Start here**: [Onboarding Guide](docs/onboarding.md)
-- **Project overview**: [Requirements](docs/requirements.md)
-- **Why decisions were made**: [Design Decisions](docs/design_decisions.md)
-- **What's next**: [Project Phases](docs/project-phases.md)
+- **Start here**: [Onboarding Guide](docs/onboarding/onboarding.md)
+- **Project overview**: [Requirements](docs/project/requirements.md)
+- **Why decisions were made**: [Design Decisions](docs/project/design_decisions.md)
+- **What's next**: [Project Phases](docs/project/project-phases.md)
 
 ### For Developers
-- **Stage 1 specs**: [stage1_requirements.md](docs/stage1_requirements.md) - 505 lines
-- **Stage 2 specs**: [stage2_requirements.md](docs/stage2_requirements.md) - 580 lines
-- **Design rationale**: [design_decisions.md](docs/design_decisions.md) - 29 decisions
-- **Agent sessions**: [agent-sessions.md](docs/agent-sessions.md) - Development history
+- **Stage 1 specs**: [stage1_requirements.md](docs/stages/stage1_requirements.md) - 505 lines
+- **Stage 2 specs**: [stage2_requirements.md](docs/stages/stage2_requirements.md) - 580 lines
+- **Stage 3 specs**: [stage3_requirements.md](docs/stages/stage3_requirements.md) - 1,400+ lines
+- **Design rationale**: [design_decisions.md](docs/project/design_decisions.md) - 29 decisions
+- **Agent sessions**: [agent-sessions.md](docs/guides/agent-sessions.md) - Development history
 
 ### Total Documentation
-- **1,639+ lines** of detailed requirements
+- **2,500+ lines** of detailed requirements
 - **29 design decisions** with rationale
-- **4 agent work sessions** documented
-- **100% coverage** of Stages 1-2
+- **Multiple agent work sessions** documented
+- **100% coverage** of Stages 1-3
 
 ## 🔒 Safety Features
 
@@ -195,8 +263,8 @@ file-organizer/
 The project is currently in the **requirements phase** with complete specifications for Stages 1-2. Implementation is ready to begin.
 
 ### How to Contribute
-1. Read the [Onboarding Guide](docs/onboarding.md)
-2. Review [Stage 1 Requirements](docs/stage1_requirements.md)
+1. Read the [Onboarding Guide](docs/onboarding/onboarding.md)
+2. Review [Stage Requirements](docs/stages/)
 3. Pick a component to implement
 4. Follow Python best practices (PEP 8)
 5. Write tests for your code
@@ -221,7 +289,7 @@ The project is currently in the **requirements phase** with complete specificati
 
 ## 📋 Design Decisions
 
-Key design decisions (see [design_decisions.md](docs/design_decisions.md) for complete list):
+Key design decisions (see [design_decisions.md](docs/project/design_decisions.md) for complete list):
 
 - **Adaptive Progress Reporting**: Frequency scales with file count (prevents spam)
 - **In-Memory Processing**: Leverages 32GB RAM for performance
@@ -263,10 +331,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Read the documentation
-cat docs/onboarding.md
+cat docs/onboarding/onboarding.md
 
-# 3. Review Stage 1 requirements
-less docs/stage1_requirements.md
+# 3. Review stage requirements
+less docs/stages/stage1_requirements.md
 
 # 4. Start implementing!
 # Create your feature branch and begin coding
