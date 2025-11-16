@@ -51,3 +51,6 @@ htmlcov/
 # Application specific
 config/*.local
 *.bak
+
+# Stage 3 cache directory (SQLite database for file hashes)
+.file_organizer_cache/

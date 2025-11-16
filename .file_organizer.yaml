@@ -1,0 +1,119 @@
+# ============================================================================
+# File Organizer Configuration File
+# ============================================================================
+# Place this file as .file_organizer.yaml in your execution directory
+# CLI flags override these settings (highest priority)
+#
+# Precedence: CLI flags > Config file > Built-in defaults
+# ============================================================================
+
+# ============================================================================
+# EXECUTION MODE
+# ============================================================================
+
+# Default execution mode when --execute flag is not specified
+default_mode: dry-run
+# Alternatives:
+# default_mode: execute     # WARNING: Will make actual changes without confirmation
+
+# ============================================================================
+# STAGE 2: FOLDER STRUCTURE OPTIMIZATION
+# ============================================================================
+
+# Folder flattening threshold (number of items)
+# Folders with this many items or fewer will be flattened into parent
+flatten_threshold: 5
+# Alternatives:
+# flatten_threshold: 0      # Disable flattening
+# flatten_threshold: 3      # More aggressive flattening
+# flatten_threshold: 10     # Less aggressive flattening
+
+# ============================================================================
+# STAGE 3: DUPLICATE DETECTION
+# ============================================================================
+
+# Duplicate detection settings
+duplicate_detection:
+  # Skip image files during duplicate detection
+  # Images are numerous (~60-70% by count) but small (~10% by size)
+  # Often intentionally duplicated (thumbnails, resizes, etc.)
+  skip_images: true
+  # Alternatives:
+  # skip_images: false      # Include images in duplicate detection
+
+  # Minimum file size to process in duplicate detection (bytes)
+  # Files smaller than this are skipped (usually not worth deduplicating)
+  min_file_size: 10240      # 10 KB (default)
+  # Alternatives:
+  # min_file_size: 0        # Process all files regardless of size
+  # min_file_size: 1024     # 1 KB minimum
+  # min_file_size: 51200    # 50 KB minimum
+  # min_file_size: 1048576  # 1 MB minimum
+
+  # Cache directory for duplicate detection database (optional)
+  # If not specified, uses .file_organizer_cache in current working directory
+  # Uncomment and set to use a custom cache location:
+  # cache_directory: /mnt/user/Share/.file_organizer_cache
+  #
+  # Other examples:
+  # cache_directory: ~/.file_organizer_cache          # User home directory
+  # cache_directory: /mnt/fast-ssd/.file_org_cache   # Put cache on fast storage
+  # cache_directory: /tmp/.file_organizer_cache      # Temporary cache (cleared on reboot)
+  # cache_directory: /path/to/shared/cache           # Shared cache for multiple directories
+
+# ============================================================================
+# FILE OPERATIONS
+# ============================================================================
+
+# Preserve original file timestamps during rename/move operations
+preserve_timestamps: true
+# Alternatives:
+# preserve_timestamps: false  # Use current timestamp for modified files
+
+# ============================================================================
+# LOGGING & OUTPUT
+# ============================================================================
+
+# Verbose output (detailed logging to console)
+verbose: true
+# Alternatives:
+# verbose: true             # Show detailed progress and debug information
+
+# Log file location
+log_location: cwd
+# Alternatives:
+# log_location: /path/to/logs  # Absolute path to log directory
+
+# Maximum number of detailed errors to log (prevents log file explosion)
+max_errors_logged: 1000
+# Alternatives:
+# max_errors_logged: 0      # Don't log detailed errors
+# max_errors_logged: 100    # Less detailed error logging
+# max_errors_logged: 10000  # More detailed error logging
+
+# ============================================================================
+# PERFORMANCE TUNING (Large Scale Operations)
+# ============================================================================
+
+# Progress update interval for main operations
+progress_update_interval: auto
+# Alternatives:
+# progress_update_interval: 100   # Update every 100 files
+# progress_update_interval: 1000  # Update every 1000 files
+
+# Number of files between scan progress updates
+scan_progress_interval: 10000
+# Alternatives:
+# scan_progress_interval: 1000   # More frequent updates (noisier)
+# scan_progress_interval: 50000  # Less frequent updates (quieter)
+
+# ============================================================================
+# FUTURE OPTIONS (Not Yet Implemented)
+# ============================================================================
+
+# The following options are planned for future releases:
+#
+# parallel_processing: false     # Enable parallel processing
+# worker_threads: 8              # Number of worker threads
+# checksum_algorithm: xxhash     # Hash algorithm (xxhash, sha256, etc.)
+# cache_expiry_days: 30          # Days before cache entries expire

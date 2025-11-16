@@ -12,27 +12,32 @@ Implements the complete Stage 1 workflow:
 """
 
 import os
+import sys
+import time
 import shutil
 from pathlib import Path
 from typing import List, Dict, Tuple, Set
 from datetime import datetime
 
 from .filename_cleaner import FilenameCleaner
+from .progress_bar import ProgressBar, SimpleProgress
 
 
 class Stage1Processor:
     """Stage 1: Filename Detoxification."""
     
-    def __init__(self, input_dir: Path, dry_run: bool = True):
+    def __init__(self, input_dir: Path, dry_run: bool = True, verbose: bool = True):
         """
         Initialize Stage 1 processor.
-        
+
         Args:
             input_dir: Directory to process
             dry_run: If True, preview changes without executing
+            verbose: If True, print progress messages
         """
         self.input_dir = input_dir.resolve()
         self.dry_run = dry_run
+        self.verbose = verbose
         self.cleaner = FilenameCleaner()
         
         # Statistics
@@ -53,101 +58,154 @@ class Stage1Processor:
         
         # Operation log (for dry-run preview)
         self.operations: List[Tuple[str, str, str]] = []  # (operation, source, dest)
-        
+
+    def _print(self, message: str = "", end: str = '\n'):
+        """Print message if verbose mode enabled."""
+        if self.verbose:
+            print(message, end=end, flush=True)
+
     def process(self):
         """Main processing entry point."""
         start_time = datetime.now()
-        
+
+        if self.dry_run:
+            self._print("⚠️  DRY-RUN MODE: No changes will be made\n")
+
         # Phase 1: Scan directory tree
-        print("Phase 1: Scanning directory tree...")
+        self._print("Stage 1/4: Filename Detoxification - Scanning Directory")
+        sys.stdout.flush()  # Ensure message appears immediately
         files, folders = self._scan_directory()
-        
-        print(f"Found: {len(files):,} files, {len(folders):,} folders")
+
         self.stats['files_scanned'] = len(files)
         self.stats['folders_scanned'] = len(folders)
-        
-        if self.dry_run:
-            print("\n⚠️  DRY-RUN MODE: No changes will be made\n")
-        
+
         # Phase 2: Process files (bottom-up, so we process files before their parent folders)
-        print("\nPhase 2: Processing files...")
-        self._process_files(files)
-        
+        if len(files) > 0:
+            self._print("\nStage 1/4: Filename Detoxification - Processing Files")
+            self._process_files(files)
+
         # Phase 3: Process folders (bottom-up)
-        print("\nPhase 3: Processing folders...")
-        self._process_folders(folders)
-        
+        if len(folders) > 0:
+            self._print("\nStage 1/4: Filename Detoxification - Processing Folders")
+            self._process_folders(folders)
+
         # Phase 4: Show summary
         end_time = datetime.now()
         duration = end_time - start_time
-        
-        print("\n" + "=" * 70)
-        print("STAGE 1 SUMMARY")
-        print("=" * 70)
-        print(f"Files scanned:        {self.stats['files_scanned']:,}")
-        print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
-        print(f"Files renamed:        {self.stats['files_renamed']:,}")
-        print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
-        print(f"Hidden files deleted: {self.stats['hidden_deleted']:,}")
-        print(f"Symlinks removed:     {self.stats['symlinks_removed']:,}")
-        print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
-        print(f"Errors:               {self.stats['errors']:,}")
-        print(f"Duration:             {duration.total_seconds():.1f}s")
-        
+
+        self._print("\n" + "=" * 70)
+        self._print("STAGE 1 SUMMARY")
+        self._print("=" * 70)
+        self._print(f"Files scanned:        {self.stats['files_scanned']:,}")
+        self._print(f"Folders scanned:      {self.stats['folders_scanned']:,}")
+        self._print(f"Files renamed:        {self.stats['files_renamed']:,}")
+        self._print(f"Folders renamed:      {self.stats['folders_renamed']:,}")
+        self._print(f"Hidden files deleted: {self.stats['hidden_deleted']:,}")
+        self._print(f"Symlinks removed:     {self.stats['symlinks_removed']:,}")
+        self._print(f"Collisions resolved:  {self.stats['collisions_resolved']:,}")
+        self._print(f"Errors:               {self.stats['errors']:,}")
+        self._print(f"Duration:             {duration.total_seconds():.1f}s")
+
         if self.dry_run:
-            print("\n" + "=" * 70)
-            print("DRY-RUN PREVIEW (showing first 20 operations):")
-            print("=" * 70)
+            self._print("\n" + "=" * 70)
+            self._print("DRY-RUN PREVIEW (showing first 20 operations):")
+            self._print("=" * 70)
             for i, (op, src, dest) in enumerate(self.operations[:20]):
-                print(f"{op}: {src}")
+                self._print(f"{op}: {src}")
                 if dest:
-                    print(f"  → {dest}")
+                    self._print(f"  → {dest}")
             if len(self.operations) > 20:
-                print(f"\n... and {len(self.operations) - 20} more operations")
+                self._print(f"\n... and {len(self.operations) - 20} more operations")
         
     def _scan_directory(self) -> Tuple[List[Path], List[Path]]:
         """
         Scan directory tree and collect files and folders.
-        
+
         Returns:
             Tuple of (files, folders) sorted bottom-up for processing
         """
         files = []
         folders = []
-        
+        progress = SimpleProgress("Scanning", verbose=self.verbose)
+
+        # Show immediate feedback (update at 0 items to display starting message)
+        progress.update(0, force=True)
+
         for root, dirs, filenames in os.walk(self.input_dir, topdown=False):
             root_path = Path(root)
-            
+
             # Collect files
             for filename in filenames:
                 file_path = root_path / filename
                 files.append(file_path)
-            
+
+                # Update progress every 50 items (more frequent feedback)
+                if len(files) % 50 == 0:
+                    progress.update(len(files) + len(folders))
+
             # Collect folders (excluding root)
             for dirname in dirs:
                 folder_path = root_path / dirname
                 folders.append(folder_path)
-        
+
+        progress.count = len(files) + len(folders)
+        progress.finish()
+
         return files, folders
     
     def _process_files(self, files: List[Path]):
         """Process all files."""
         total = len(files)
-        update_interval = self._calculate_update_interval(total)
-        
+
+        # Track stats for progress bar
+        renamed_count = 0
+        deleted_count = 0
+        symlink_count = 0
+        collision_count = 0
+
+        progress = ProgressBar(
+            total=total,
+            description="Processing Files",
+            verbose=self.verbose,
+            min_duration=1.0
+        )
+
         for i, file_path in enumerate(files):
-            # Progress update
-            if (i + 1) % update_interval == 0 or i == total - 1:
-                progress = (i + 1) / total * 100
-                print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
-            
+            # Save current stats
+            prev_renamed = self.stats['files_renamed']
+            prev_deleted = self.stats['hidden_deleted']
+            prev_symlinks = self.stats['symlinks_removed']
+            prev_collisions = self.stats['collisions_resolved']
+
             try:
                 self._process_single_file(file_path)
             except Exception as e:
                 self.stats['errors'] += 1
-                print(f"\n  ERROR: {file_path}: {e}")
-        
-        print(f"  Processing: {total:,}/{total:,} (100.0%)")  # Final progress
+                progress.message(f"ERROR: {file_path}: {e}")
+
+            # Update counters
+            renamed_count = self.stats['files_renamed']
+            deleted_count = self.stats['hidden_deleted']
+            symlink_count = self.stats['symlinks_removed']
+            collision_count = self.stats['collisions_resolved']
+
+            # Update progress bar with stats
+            stats = {
+                "Renamed": renamed_count,
+                "Deleted": deleted_count,
+                "Symlinks": symlink_count,
+                "Collisions": collision_count
+            }
+            progress.update(i + 1, stats)
+
+        # Finish progress bar
+        final_stats = {
+            "Renamed": renamed_count,
+            "Deleted": deleted_count,
+            "Symlinks": symlink_count,
+            "Collisions": collision_count
+        }
+        progress.finish(final_stats)
     
     def _process_single_file(self, file_path: Path):
         """Process a single file."""
@@ -181,20 +239,42 @@ class Stage1Processor:
     def _process_folders(self, folders: List[Path]):
         """Process all folders."""
         total = len(folders)
-        
+
+        # Track stats for progress bar
+        renamed_count = 0
+        collision_count = 0
+
+        progress = ProgressBar(
+            total=total,
+            description="Processing Folders",
+            verbose=self.verbose,
+            min_duration=1.0
+        )
+
         for i, folder_path in enumerate(folders):
-            # Progress update
-            if (i + 1) % 10 == 0 or i == total - 1:
-                progress = (i + 1) / total * 100
-                print(f"  Processing: {i + 1:,}/{total:,} ({progress:.1f}%)", end='\r')
-            
             try:
                 self._process_single_folder(folder_path)
             except Exception as e:
                 self.stats['errors'] += 1
-                print(f"\n  ERROR: {folder_path}: {e}")
-        
-        print(f"  Processing: {total:,}/{total:,} (100.0%)")
+                progress.message(f"ERROR: {folder_path}: {e}")
+
+            # Update counters
+            renamed_count = self.stats['folders_renamed']
+            collision_count = self.stats['collisions_resolved'] - self.stats.get('file_collisions', 0)
+
+            # Update progress bar with stats
+            stats = {
+                "Renamed": renamed_count,
+                "Collisions": collision_count
+            }
+            progress.update(i + 1, stats)
+
+        # Finish progress bar
+        final_stats = {
+            "Renamed": renamed_count,
+            "Collisions": collision_count
+        }
+        progress.finish(final_stats)
     
     def _process_single_folder(self, folder_path: Path):
         """Process a single folder."""
@@ -310,14 +390,4 @@ class Stage1Processor:
                 self.stats['errors'] += 1
                 raise
     
-    def _calculate_update_interval(self, total: int) -> int:
-        """Calculate adaptive progress update interval."""
-        if total < 1000:
-            return 10
-        elif total < 10000:
-            return 100
-        elif total < 100000:
-            return 500
-        else:
-            return 1000
 
