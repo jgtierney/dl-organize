@@ -478,11 +478,14 @@ class HashCache:
         for i in range(0, len(file_paths), BATCH_SIZE):
             batch_paths = file_paths[i:i + BATCH_SIZE]
             placeholders = ','.join('?' * len(batch_paths))
-            
-            cursor.execute(f"""
+
+            # Build query without f-string to follow SQL injection prevention best practices
+            query = """
                 SELECT * FROM file_cache
-                WHERE folder = ? AND file_path IN ({placeholders})
-            """, (folder, *batch_paths))
+                WHERE folder = ? AND file_path IN ({})
+            """.format(placeholders)
+
+            cursor.execute(query, (folder, *batch_paths))
 
             for row in cursor.fetchall():
                 cached = CachedFile(

@@ -94,6 +94,7 @@ class Stage4Processor:
         self.failed_files: List[Tuple[Path, str]] = []
         self.top_level_file_count = 0
         self.dirs_created = 0
+        self.security_violations = 0  # Track path traversal attempts
 
     def process(self) -> Stage4Results:
         """
@@ -327,6 +328,17 @@ class Stage4Processor:
                 rel_path = file_path.relative_to(self.input_folder)
                 dest_path = self.output_folder / rel_path
 
+            # SECURITY: Validate destination path
+            if not self._validate_destination_path(dest_path):
+                logger.error(
+                    f"Security violation: Path traversal detected for {file_path}. "
+                    f"Destination {dest_path} is outside output folder. "
+                    f"Skipping this file for safety."
+                )
+                self.security_violations += 1
+                self.failed_files.append((file_path, "Path traversal attempt blocked"))
+                continue
+
             # Move file (or simulate in dry-run)
             try:
                 file_size = file_path.stat().st_size
@@ -394,6 +406,33 @@ class Stage4Processor:
         except Exception as e:
             # Not critical if timestamps can't be preserved
             logger.debug(f"Could not preserve timestamps for {dest}: {e}")
+
+    def _validate_destination_path(self, dest_path: Path) -> bool:
+        """
+        Validate that destination path is within output folder.
+
+        Prevents path traversal attacks via "../" components.
+
+        Args:
+            dest_path: Proposed destination path
+
+        Returns:
+            True if path is safe, False if security violation
+        """
+        try:
+            # Resolve all paths (follow symlinks, resolve ..)
+            resolved_dest = dest_path.resolve()
+            resolved_output = self.output_folder.resolve()
+
+            # Check if dest is within output folder
+            # This will raise ValueError if dest is outside output
+            resolved_dest.relative_to(resolved_output)
+
+            return True
+
+        except ValueError:
+            # Path escapes output folder - security violation
+            return False
 
     def _verify_relocation(self) -> List[Path]:
         """
@@ -522,6 +561,17 @@ class Stage4Processor:
                 self._print(f"  - {failed_path}: {error}")
             if len(self.failed_files) > 10:
                 self._print(f"  ... and {len(self.failed_files) - 10} more")
+
+        # Security warnings
+        if self.security_violations > 0:
+            self._print()
+            self._print(f"⚠️  SECURITY WARNING: Detected {self.security_violations} potential path traversal attempts!")
+            self._print("   These files were skipped for safety.")
+            self._print("   Please review your input directory for suspicious filenames containing '..' or path manipulation.")
+            logger.warning(
+                f"SECURITY: Detected {self.security_violations} potential path traversal attempts. "
+                f"These files were skipped for safety."
+            )
 
         # Calculate time (placeholder - could be tracked)
         # self._print(f"Time taken: X.X seconds")

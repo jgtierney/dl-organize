@@ -146,6 +146,66 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def validate_folder_paths(
+    input_path: Path,
+    output_path: Optional[Path]
+) -> Optional[str]:
+    """
+    Validate input and output folder paths for safety.
+
+    Checks:
+    1. Output folder is not inside input folder
+    2. Input folder is not inside output folder
+    3. Both paths are not the same
+
+    Args:
+        input_path: Input folder path
+        output_path: Output folder path (optional)
+
+    Returns:
+        Error message if validation fails, None if OK
+    """
+    if output_path is None:
+        return None
+
+    # Resolve paths to absolute
+    resolved_input = input_path.resolve()
+    resolved_output = output_path.resolve()
+
+    # Check if paths are identical
+    if resolved_input == resolved_output:
+        return (
+            f"ERROR: Input and output folders cannot be the same. "
+            f"Folder: {input_path}"
+        )
+
+    # Check if output is inside input
+    try:
+        resolved_output.relative_to(resolved_input)
+        return (
+            f"ERROR: Output folder '{output_path}' cannot be inside "
+            f"input folder '{input_path}'. This would cause infinite "
+            f"recursion and potential data loss.\n"
+            f"Please choose a different output location."
+        )
+    except ValueError:
+        pass  # Good - output is NOT inside input
+
+    # Check if input is inside output
+    try:
+        resolved_input.relative_to(resolved_output)
+        return (
+            f"ERROR: Input folder '{input_path}' cannot be inside "
+            f"output folder '{output_path}'. This would cause "
+            f"unexpected behavior.\n"
+            f"Please choose a different input or output location."
+        )
+    except ValueError:
+        pass  # Good - input is NOT inside output
+
+    return None  # All validations passed
+
+
 def validate_arguments(args: argparse.Namespace) -> Optional[str]:
     """
     Validate command-line arguments.
@@ -189,6 +249,11 @@ def validate_arguments(args: argparse.Namespace) -> Optional[str]:
         for dangerous in dangerous_dirs:
             if abs_output == dangerous or abs_output.startswith(dangerous + "/"):
                 return f"DANGEROUS: Cannot use system directory as output: {abs_output}"
+
+        # Validate folder path relationships (output-in-input, etc.)
+        path_error = validate_folder_paths(input_path, output_path)
+        if path_error:
+            return path_error
 
     # Validate Stage 3B requires output folder
     if args.stage == "3b" and not args.output_folder:
