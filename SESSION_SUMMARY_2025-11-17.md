@@ -2,7 +2,7 @@
 ## dl-organize Security Remediation - Day 1
 
 ### 📋 Session Objective
-Complete Phase 1 Critical Security Fixes from REMEDIATION_PLAN_V2.md:
+Complete Phase 1 Critical Security Fixes from REMEDIATION_PLAN_V3.md:
 - Issue #2: Path Traversal Vulnerability (Stage 4)
 - Issue #5: SQL Injection Risk (hash_cache)
 
@@ -192,7 +192,7 @@ From today's requirements:
 
 ## 📅 Next Session Planning
 
-### ✅ Completed from REMEDIATION_PLAN_V2.md Phase 1:
+### ✅ Completed from REMEDIATION_PLAN_V3.md Phase 1:
 - Issue #2: Path Traversal Vulnerability (2-3 hours) ✓
 - Issue #5: SQL Injection Risk (1 hour) ✓
 
@@ -251,7 +251,7 @@ Status: Pushed to origin
 
 ## 🔗 Reference Documents
 
-- **Remediation Plan:** `docs/audit1/REMEDIATION_PLAN_V2.md`
+- **Remediation Plan:** `docs/audit1/REMEDIATION_PLAN_V3.md`
   - Section 4: Critical Issues - Detailed Fixes
   - Issue #2: Lines 914-1219 (Path Traversal)
   - Issue #5: Referenced in appendices
@@ -294,7 +294,7 @@ git log -1 --stat
 python -m pytest tests/test_stage4_security.py -v
 
 # 5. Review next tasks
-cat docs/audit1/REMEDIATION_PLAN_V2.md | grep -A 20 "Issue #3"
+cat docs/audit1/REMEDIATION_PLAN_V3.md | grep -A 20 "Issue #3"
 ```
 
 ---
