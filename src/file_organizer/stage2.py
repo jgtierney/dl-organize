@@ -11,6 +11,7 @@ lImplements the complete Stage 2 workflow:
 import os
 import sys
 import shutil
+import logging
 from pathlib import Path
 from typing import List, Dict, Tuple, Set
 from datetime import datetime
@@ -18,6 +19,8 @@ from datetime import datetime
 from .filename_cleaner import FilenameCleaner
 from .config import Config
 from .progress_bar import ProgressBar, SimpleProgress
+
+logger = logging.getLogger(__name__)
 
 
 class Stage2Processor:
@@ -50,6 +53,7 @@ class Stage2Processor:
             'collisions_resolved': 0,
             'errors': 0,
             'flattening_passes': 0,
+            'permission_warnings': 0,
         }
         
         # Track all target names for collision detection
@@ -108,6 +112,13 @@ class Stage2Processor:
         self._print(f"Flattening passes:    {self.stats['flattening_passes']}")
         self._print(f"Errors:               {self.stats['errors']:,}")
         self._print(f"Duration:             {duration.total_seconds():.1f}s")
+
+        # Show permission warning summary if any
+        if self.stats['permission_warnings'] > 0:
+            self._print()
+            self._print(f"⚠️  Warning: Encountered {self.stats['permission_warnings']} permission warnings.")
+            self._print(f"   Some folders may have incorrect ownership or permissions.")
+            self._print(f"   Run as root to change ownership, or ignore if not needed.")
 
         if self.dry_run:
             self._print("\n" + "=" * 70)
@@ -506,12 +517,35 @@ class Stage2Processor:
                 
                 # Set permissions
                 new_path.chmod(0o755)
-                
+
                 # Attempt to change ownership (may fail without sudo)
                 try:
-                    shutil.chown(str(new_path), user='nobody', group='users')
-                except (PermissionError, LookupError):
-                    pass  # Continue if ownership change fails
+                    # Only attempt ownership change if running as root
+                    # Non-root users cannot change ownership to other users
+                    if os.getuid() == 0:
+                        shutil.chown(str(new_path), user='nobody', group='users')
+                        logger.debug(f"Changed ownership: {new_path} -> nobody:users")
+                    else:
+                        # Not root - skip ownership change
+                        logger.debug(f"Skipping ownership change (not root): {new_path}")
+                except PermissionError as e:
+                    # Expected error - log as warning
+                    logger.warning(
+                        f"Permission denied changing ownership for {new_path}: {e}. "
+                        f"Folder may have incorrect permissions."
+                    )
+                    self.stats['permission_warnings'] += 1
+                except LookupError as e:
+                    # User/group doesn't exist
+                    logger.warning(
+                        f"User 'nobody' or group 'users' not found on this system. "
+                        f"Skipping ownership change for {new_path}."
+                    )
+                    self.stats['permission_warnings'] += 1
+                except Exception as e:
+                    # Unexpected error
+                    logger.error(f"Unexpected error changing ownership for {new_path}: {e}")
+                    self.stats['errors'] += 1
 
             except Exception as e:
                 self._print(f"  ERROR renaming folder {old_path} to {new_path}: {e}")

@@ -2,11 +2,20 @@
 Command-line interface for File Organizer.
 
 Handles argument parsing, validation, and orchestration of processing stages.
+
+Exit Codes:
+    0: Success
+    1: File operation error (permissions, disk full, etc.)
+    2: Database error (cache corruption)
+    3: Configuration error (invalid settings)
+    99: Unexpected/unknown error (please report as bug)
 """
 
 import argparse
 import sys
 import time
+import sqlite3
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -17,6 +26,8 @@ from .stage2 import Stage2Processor
 from .stage3 import Stage3
 from .stage4 import Stage4Processor
 from .config import Config
+
+logger = logging.getLogger(__name__)
 
 
 # Global for tracking elapsed time
@@ -510,12 +521,34 @@ def main() -> int:
         return 0
 
     except KeyboardInterrupt:
-        raise  # Re-raise to be handled by __main__
+        # User interrupted - re-raise for clean shutdown
+        raise
+    except (SystemExit, GeneratorExit):
+        # Special exceptions that must propagate
+        raise
+    except (OSError, IOError, PermissionError) as e:
+        # Expected file operation errors
+        logger.error(f"File operation failed: {e}")
+        logger.info("Check file permissions and available disk space.")
+        return 1
+    except (sqlite3.Error, sqlite3.DatabaseError) as e:
+        # Database errors
+        logger.error(f"Database error: {e}")
+        logger.info("The cache database may be corrupted.")
+        logger.info("Try deleting .file_organizer_cache/ directory and re-running.")
+        return 2
+    except ValueError as e:
+        # Configuration or validation errors
+        logger.error(f"Configuration error: {e}")
+        logger.info("Check your .file_organizer.yaml file for invalid values.")
+        return 3
     except Exception as e:
-        print(f"\nERROR: {e}", file=sys.stderr)
+        # Truly unexpected errors - log with full traceback
+        logger.critical(f"Unexpected error: {e}")
+        logger.critical("This is a bug - please report to: https://github.com/jgtierney/dl-organize/issues")
         import traceback
         traceback.print_exc()
-        return 1
+        return 99
 
 
 if __name__ == "__main__":
