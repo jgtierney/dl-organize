@@ -123,6 +123,48 @@ class Stage3:
         """Print result (new line, remains visible)."""
         self._print(f"  ✓ {message}")
 
+    def _print_phase_header(self, current: int, total: int, name: str):
+        """Print clear phase header with visual separation (Option B format)."""
+        self._print("")
+        self._print("=" * 70)
+        self._print(f"  PHASE [{current}/{total}]: {name}")
+        self._print("=" * 70)
+
+    def _print_phase_complete(self, current: int, total: int, message: str):
+        """Print phase completion with checkmark."""
+        self._print(f"  ✓ Phase {current}/{total} complete: {message}")
+
+    def _estimate_hash_time(self, file_count: int) -> str:
+        """
+        Estimate hashing time based on historical performance.
+
+        Args:
+            file_count: Number of files to hash
+
+        Returns:
+            Formatted time estimate (e.g., "3h 18m", "45m", "2m 30s")
+        """
+        # Historical average: 80 files/sec (based on real-world performance)
+        AVERAGE_FILES_PER_SEC = 80
+
+        estimated_seconds = file_count / AVERAGE_FILES_PER_SEC
+
+        # Format as hours, minutes, seconds
+        hours = int(estimated_seconds // 3600)
+        minutes = int((estimated_seconds % 3600) // 60)
+        seconds = int(estimated_seconds % 60)
+
+        if hours > 0:
+            if minutes > 0:
+                return f"{hours}h {minutes}m"
+            return f"{hours}h"
+        elif minutes > 0:
+            if seconds > 30:  # Round up if > 30 seconds
+                minutes += 1
+            return f"{minutes}m"
+        else:
+            return f"{seconds}s"
+
     def run_stage3a(self) -> Stage3Results:
         """
         Run Stage 3A: Internal deduplication for input folder.
@@ -135,9 +177,8 @@ class Stage3:
         self._print(f"Mode: {'DRY-RUN (no deletions)' if self.dry_run else 'EXECUTE (will delete duplicates)'}")
         self._print(f"Settings: skip_images={self.skip_images}, min_size={self.min_file_size:,} bytes")
 
-        # Phase 1: Detect duplicates
-        self._print_phase(1, 3, "Detecting Duplicates")
-
+        # ===== DETECTION PHASE WITH DETAILED PROGRESS =====
+        # Create detector instance for reuse across all phases
         detector = DuplicateDetector(
             cache=self.cache,
             skip_images=self.skip_images,
@@ -146,9 +187,147 @@ class Stage3:
             verbose=self.verbose
         )
 
-        duplicate_groups = detector.detect_duplicates(self.input_folder, folder='input')
+        # Phase 1/4: Scan Directory
+        self._print_phase_header(1, 4, "Scanning Directory")
+        files = detector.scan_directory(self.input_folder, folder='input')
+        self._print_phase_complete(1, 4, f"Found {len(files):,} files to process")
 
-        self._print_result(f"Found {len(duplicate_groups)} duplicate groups")
+        if not files:
+            self._print("\nNo files found. Nothing to do!")
+            return Stage3Results(
+                total_duplicates=0,
+                files_deleted=0,
+                space_freed=0,
+                duplicate_groups=[],
+                dry_run=self.dry_run
+            )
+
+        # Phase 2/4: Update File Cache
+        self._print_phase_header(2, 4, "Updating File Cache")
+
+        # Batch update cache with scanned file metadata
+        from .duplicate_detector import FileMetadata
+        from .progress_bar import ProgressBar
+
+        scanned_paths = [file_meta.path for file_meta in files]
+        cached_by_path = self.cache.get_files_by_paths(scanned_paths, 'input')
+
+        cache_progress = ProgressBar(
+            total=len(files),
+            description="Updating cache",
+            verbose=self.verbose,
+            min_duration=1.0
+        )
+        cache_progress.update(0, {"Updated": 0, "Skipped": 0})
+
+        batch_entries = []
+        updated_count = 0
+        skipped_count = 0
+
+        for idx, file_meta in enumerate(files, 1):
+            cached = cached_by_path.get(file_meta.path)
+
+            if not cached or cached.file_size != file_meta.size or cached.file_mtime != file_meta.mtime:
+                batch_entries.append({
+                    'file_path': file_meta.path,
+                    'folder': 'input',
+                    'file_size': file_meta.size,
+                    'file_mtime': file_meta.mtime,
+                    'file_hash': None,
+                    'hash_type': None
+                })
+                updated_count += 1
+            else:
+                skipped_count += 1
+
+            if idx % 1000 == 0 or idx == len(files):
+                cache_progress.update(idx, {"Updated": updated_count, "Skipped": skipped_count})
+
+        if batch_entries:
+            self.cache.save_batch(batch_entries)
+
+        cache_progress.finish({"Updated": updated_count, "Skipped": skipped_count})
+
+        # Get total cache size for informative message
+        total_cached = self.cache.get_total_count()
+        self._print_phase_complete(2, 4, f"Cache updated ({total_cached:,} total items in cache)")
+
+        # Phase 3/4: Computing File Hashes (LONGEST PHASE)
+        # Group by size first to determine how many files need hashing
+        size_groups = detector.group_by_size(files)
+        collision_groups = {
+            size: file_list
+            for size, file_list in size_groups.items()
+            if len(file_list) >= 2
+        }
+        files_to_hash = sum(len(file_list) for file_list in collision_groups.values())
+
+        self._print_phase_header(3, 4, "Computing File Hashes")
+
+        # Show helpful context for long operations
+        if files_to_hash > 1000:
+            estimated_time = self._estimate_hash_time(files_to_hash)
+            self._print(f"  ⏱️  Estimated duration: {estimated_time}")
+            self._print(f"  📊  This is the longest phase - please be patient")
+            self._print(f"  💡  Progress updates every 10 seconds minimum")
+
+        # Hash collision groups
+        hash_groups = {}
+        hashed_count = 0
+        skipped_count = 0
+
+        if files_to_hash > 0:
+            hash_progress = ProgressBar(
+                total=files_to_hash,
+                description="Computing hashes",
+                verbose=self.verbose,
+                min_duration=1.0
+            )
+
+            idx = 0
+            for size, file_list in collision_groups.items():
+                for file_meta in file_list:
+                    idx += 1
+                    file_hash = detector.hash_file_with_cache(file_meta, 'input')
+
+                    if not file_hash:
+                        skipped_count += 1
+                        hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
+                        continue
+
+                    if file_hash not in hash_groups:
+                        hash_groups[file_hash] = []
+                    hash_groups[file_hash].append((file_meta.path, size))
+
+                    hashed_count += 1
+                    hash_progress.update(idx, {"Hashed": hashed_count, "Skipped": skipped_count})
+
+            hash_progress.finish({"Hashed": hashed_count, "Skipped": skipped_count})
+
+        self._print_phase_complete(3, 4, f"Hashed {files_to_hash:,} files ({detector.stats['cache_hits']:,} cache hits)")
+
+        # Phase 4/4: Identifying Duplicates
+        self._print_phase_header(4, 4, "Identifying Duplicates")
+
+        duplicate_groups = []
+        for file_hash, file_list in hash_groups.items():
+            if len(file_list) >= 2:
+                paths = [path for path, size in file_list]
+                size = file_list[0][1]
+
+                from .duplicate_detector import DuplicateGroup
+                duplicate_groups.append(DuplicateGroup(
+                    hash=file_hash,
+                    files=paths,
+                    size=size
+                ))
+
+                detector.stats['duplicates_found'] += len(paths) - 1
+                detector.stats['bytes_saved'] += size * (len(paths) - 1)
+
+        self._print_phase_complete(4, 4, f"Found {len(duplicate_groups):,} duplicate groups")
+
+        # Print statistics summary
         self._print("\n" + detector.get_stats_summary())
 
         if not duplicate_groups:
@@ -161,7 +340,7 @@ class Stage3:
                 dry_run=self.dry_run
             )
 
-        # Phase 2: Resolve duplicates
+        # ===== RESOLUTION PHASE =====
         self._print_phase(2, 3, "Resolving Duplicates (determining which to keep)")
 
         resolution_plan = []

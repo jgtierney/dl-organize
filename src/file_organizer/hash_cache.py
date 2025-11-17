@@ -591,6 +591,17 @@ class HashCache:
             'db_size_mb': round(db_size / (1024 * 1024), 2)
         }
 
+    def get_total_count(self) -> int:
+        """
+        Get total number of files in cache.
+
+        Returns:
+            Total file count
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM file_cache")
+        return cursor.fetchone()['count']
+
     def close(self):
         """Close database connection."""
         if self.conn:
